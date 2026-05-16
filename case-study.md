@@ -291,14 +291,14 @@ Ngành thời trang đang chứng kiến sự chuyển dịch mạnh mẽ sang k
 | Tiêu chí | Yêu cầu cụ thể |
 |---|---|
 | Hiệu năng | Thời gian phản hồi API < 2 giây; hỗ trợ ≥ 100 người dùng đồng thời |
-| Bảo mật | Mã hoá mật khẩu bằng BCrypt; xác thực bằng JWT; phân quyền ADMIN / CUSTOMER qua Spring Security |
+| Bảo mật | Mã hoá mật khẩu bằng BCrypt; xác thực bằng JWT; phân quyền ADMIN / CUSTOMER qua Spring Security; Xác thực chữ ký số (Checksum/Hash) bảo mật dữ liệu giao dịch giữa Website và Gateway; bảo mật Endpoint IPN (Instant Payment Notification) |
 | Khả dụng | Uptime ≥ 99%; không downtime trong giờ cao điểm |
-| Khả năng mở rộng | Thiết kế module hoá theo MVC, dễ tích hợp Payment Gateway / OAuth sau |
+| Khả năng mở rộng | Thiết kế module hoá theo MVC, dễ tích hợp OAuth sau |
 | Khả năng bảo trì | Tuân theo Java Coding Convention; sử dụng Lombok giảm boilerplate; Unit Test ≥ 70% coverage |
 | Tương thích | Hỗ trợ Chrome, Firefox, Edge; giao diện responsive trên mobile và desktop |
 | Dữ liệu | Lưu dữ liệu tối thiểu 2 năm; backup tự động hàng ngày |
 | Email | Gửi email xác nhận đăng ký, reset mật khẩu, xác nhận đơn hàng qua Spring Mail |
-| Tính toàn vẹn dữ liệu | Đảm bảo việc trừ tồn kho (product_variants.stock_quantity) phải sử dụng Transaction để tránh sai lệch khi có cả khách mua online và khách mua tại quầy cùng lúc |
+| Tính toàn vẹn dữ liệu | Đảm bảo việc trừ tồn kho (product_variants.stock_quantity) phải sử dụng Transaction để tránh sai lệch khi có cả khách mua online và khách mua tại quầy cùng lúc; Đảm bảo đồng bộ trạng thái đơn hàng (giao dịch thành công/thất bại) thông qua cơ chế xử lý IPN từ phía cổng thanh toán ngay cả khi khách hàng tắt trình duyệt đột ngột |
 
 ---
 
