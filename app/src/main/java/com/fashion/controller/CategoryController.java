@@ -36,13 +36,13 @@ public class CategoryController {
     }
 
     // API Tạo mới
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<CategoryResponseDTO> createCategory(@RequestBody CategoryRequestDTO request) {
         return new ResponseEntity<>(categoryService.createCategory(request), HttpStatus.CREATED);
     }
 
     // API Cập nhật
-    @PutMapping("/{id}")
+    @PutMapping("/update/{id}")
     public ResponseEntity<CategoryResponseDTO> updateCategory(
             @PathVariable Long id,
             @RequestBody CategoryRequestDTO request) {
@@ -50,7 +50,7 @@ public class CategoryController {
     }
 
     // API Xóa
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return ResponseEntity.ok("Xóa danh mục thành công!");
