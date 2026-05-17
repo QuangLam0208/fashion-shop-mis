@@ -4,6 +4,7 @@ import com.fashion.model.Coupon;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -21,7 +22,7 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     // Áp dụng mã: Mã đang hiệu lực VÀ chưa qua ngày hết hạn
     Optional<Coupon> findByCodeAndActiveTrueAndExpiryDateAfter(String code, Instant currentDate);
 
-    @org.springframework.data.jpa.repository.Query("SELECT c FROM Coupon c WHERE " +
+    @Query("SELECT c FROM Coupon c WHERE " +
             "(:keyword IS NULL OR LOWER(c.code) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     Page<Coupon> findAllForAdmin(String keyword, Pageable pageable);
 
