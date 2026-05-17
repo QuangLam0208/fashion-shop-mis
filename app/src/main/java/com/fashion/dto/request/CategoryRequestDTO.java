@@ -1,4 +1,4 @@
-package com.fashion.dto;
+package com.fashion.dto.request;
 
 import lombok.Data;
 

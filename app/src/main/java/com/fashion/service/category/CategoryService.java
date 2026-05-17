@@ -1,7 +1,7 @@
-package com.fashion.service;
+package com.fashion.service.category;
 
-import com.fashion.dto.CategoryRequestDTO;
-import com.fashion.dto.CategoryResponseDTO;
+import com.fashion.dto.request.CategoryRequestDTO;
+import com.fashion.dto.response.CategoryResponseDTO;
 
 import java.util.List;
 

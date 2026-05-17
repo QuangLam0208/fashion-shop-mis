@@ -1,4 +1,4 @@
-package com.fashion.dto;
+package com.fashion.dto.response;
 
 import lombok.Data;
 import java.util.List;

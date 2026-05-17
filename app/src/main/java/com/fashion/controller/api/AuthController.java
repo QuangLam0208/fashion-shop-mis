@@ -1,4 +1,4 @@
-package com.fashion.controller;
+package com.fashion.controller.api;
 
 import com.fashion.dto.request.*;
 import com.fashion.dto.response.LoginResponseDTO;

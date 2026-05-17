@@ -1,4 +1,4 @@
-package com.fashion.service.auth.impl;
+package com.fashion.service.auth;
 
 import com.fashion.dto.request.*;
 import com.fashion.dto.response.LoginResponseDTO;
@@ -16,7 +16,6 @@ import com.fashion.repository.RefreshTokenRepository;
 import com.fashion.repository.TokenRepository;
 import com.fashion.repository.UserRepository;
 import com.fashion.security.JwtTokenProvider;
-import com.fashion.service.auth.AuthService;
 import com.fashion.service.email_log.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;

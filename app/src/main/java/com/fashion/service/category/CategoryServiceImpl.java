@@ -1,10 +1,9 @@
-package com.fashion.service.impl;
+package com.fashion.service.category;
 
-import com.fashion.dto.CategoryRequestDTO;
-import com.fashion.dto.CategoryResponseDTO;
+import com.fashion.dto.request.CategoryRequestDTO;
+import com.fashion.dto.response.CategoryResponseDTO;
 import com.fashion.model.Category;
 import com.fashion.repository.CategoryRepository;
-import com.fashion.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
