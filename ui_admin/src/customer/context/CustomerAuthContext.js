@@ -1,117 +1,89 @@
 // src/customer/context/CustomerAuthContext.js
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useCallback } from 'react';
 import customerAuthService from '../services/customerAuthService';
-
-const STORAGE_KEY = 'fashion_customer_token';
 
 export const CustomerAuthContext = createContext(null);
 
 /**
  * CustomerAuthProvider
- * Bọc toàn bộ Customer routes trong App.js
  *
- * State:
- *   currentUser  — thông tin user đang đăng nhập (hoặc null)
- *   token        — JWT token (hoặc null)
- *   loading      — true khi đang khởi tạo (check localStorage)
- *   isAuthenticated — boolean tiện dùng
+ * Vì backend không có /me endpoint, user info được lưu tạm
+ * vào localStorage khi login và đọc lại khi reload trang.
  *
- * Actions:
- *   login(email, password, remember)
- *   logout()
- *   updateProfile(updatedUser) — cập nhật local state sau khi sửa profile
+ * Storage keys:
+ *   fashion_customer_token        — JWT access token
+ *   fashion_customer_refresh_token — refresh token
+ *   fashion_customer_user         — user info JSON
  */
-export const CustomerAuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY));
-  const [loading, setLoading] = useState(true);
+const USER_KEY = 'fashion_customer_user';
 
-  // Khởi tạo — kiểm tra token đã lưu
-  useEffect(() => {
-    const init = async () => {
-      const savedToken = localStorage.getItem(STORAGE_KEY);
-      if (!savedToken) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const user = await customerAuthService.getMe();
-        if (user) {
-          setCurrentUser(user);
-          setToken(savedToken);
-        } else {
-          localStorage.removeItem(STORAGE_KEY);
-          setToken(null);
-        }
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-        setToken(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    init();
-  }, []);
+const _loadUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem(USER_KEY)) || null;
+  } catch {
+    return null;
+  }
+};
+
+export const CustomerAuthProvider = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState(_loadUser);
+  const [token, setToken]             = useState(customerAuthService.getToken);
+
+  const isAuthenticated = !!currentUser && !!token;
 
   /**
    * Đăng nhập
-   * @param {string} email
-   * @param {string} password
-   * @param {boolean} remember — true: lưu localStorage, false: sessionStorage (tùy chọn)
+   * @param {string}  email
+   * @param {string}  password
+   * @param {boolean} remember — true: lưu localStorage
    */
   const login = useCallback(async (email, password, remember = true) => {
-    const data = await customerAuthService.login(email, password);
-    // data = { token, user }
-    const { token: newToken, user } = data;
-    setToken(newToken);
-    setCurrentUser(user);
-    // Lưu token
-    if (remember) {
-      localStorage.setItem(STORAGE_KEY, newToken);
-    } else {
-      sessionStorage.setItem(STORAGE_KEY, newToken);
-      localStorage.setItem(STORAGE_KEY, newToken); // fallback cho axiosInstance
-    }
+    const data = await customerAuthService.login(email, password, remember);
+    // data = { token, refreshToken, user }
+    customerAuthService.saveTokens(
+      { token: data.token, refreshToken: data.refreshToken },
+      remember
+    );
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    setToken(data.token);
+    setCurrentUser(data.user);
   }, []);
 
   /**
    * Đăng xuất
    */
   const logout = useCallback(async () => {
-    try {
-      await customerAuthService.logout();
-    } catch {
-      // Bỏ qua lỗi logout API
-    } finally {
-      setCurrentUser(null);
-      setToken(null);
-      localStorage.removeItem(STORAGE_KEY);
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
+    await customerAuthService.logout();
+    localStorage.removeItem(USER_KEY);
+    setToken(null);
+    setCurrentUser(null);
   }, []);
 
   /**
-   * Cập nhật thông tin profile (dùng trong ProfilePage)
+   * Cập nhật thông tin profile cục bộ
    */
-  const updateProfile = useCallback((updatedUser) => {
-    setCurrentUser((prev) => ({ ...prev, ...updatedUser }));
+  const updateProfile = useCallback((updated) => {
+    setCurrentUser((prev) => {
+      const merged = { ...prev, ...updated };
+      localStorage.setItem(USER_KEY, JSON.stringify(merged));
+      return merged;
+    });
   }, []);
 
-  const value = {
-    currentUser,
-    token,
-    loading,
-    isAuthenticated: !!currentUser && !!token,
-    login,
-    logout,
-    updateProfile,
-  };
-
   return (
-    <CustomerAuthContext.Provider value={value}>
+    <CustomerAuthContext.Provider
+      value={{
+        currentUser,
+        token,
+        isAuthenticated,
+        login,
+        logout,
+        updateProfile,
+        // Expose loading=false vì không có async init nữa
+        loading: false,
+      }}
+    >
       {children}
     </CustomerAuthContext.Provider>
   );
 };
-
-export default CustomerAuthContext;

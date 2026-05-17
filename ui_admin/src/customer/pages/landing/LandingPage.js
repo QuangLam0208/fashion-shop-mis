@@ -1,67 +1,95 @@
 // src/customer/pages/landing/LandingPage.js
-import React from 'react';
-import { Button, Typography, Row, Col, Card } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Row, Col, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { mockProducts } from '../../../shared/mocks/productMocks';
+import BannerSlider  from '../../components/BannerSlider';
+import CategoryCard  from '../../components/CategoryCard';
+import ProductCard   from '../../components/ProductCard';
+import '../../styles/landing.css';
+import '../../styles/customer.css';
 import { mockCategories } from '../../../shared/mocks/catagoryMock';
-import { formatCurrency } from '../../../shared/utils/formatters';
+import { shopProductService } from '../../services/shopProductService';
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const featuredProducts = mockProducts.slice(0, 4);
-  const topCategories    = mockCategories.filter((c) => !c.parent_id);
+  const [featured, setFeatured] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const topCategories = mockCategories.filter((c) => !c.parent_id);
+
+  useEffect(() => {
+    shopProductService.getAll({ limit: 8, sort: 'rating' }).then((res) => {
+      setFeatured(res.data || []);
+      setLoading(false);
+    });
+  }, []);
 
   return (
     <div>
-      {/* Hero Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1a1a1a 0%, #3d2b1f 100%)',
-        color: '#fff', textAlign: 'center', padding: '100px 32px',
-      }}>
-        <Typography.Title style={{ color: '#fff', fontSize: 48, marginBottom: 16 }}>
-          Thời Trang Đỉnh Cao
-        </Typography.Title>
-        <Typography.Paragraph style={{ color: '#c9a96e', fontSize: 18, marginBottom: 32 }}>
-          Khám phá bộ sưu tập mới nhất — phong cách của bạn bắt đầu từ đây
-        </Typography.Paragraph>
-        <Button size="large" style={{ background: '#c9a96e', border: 'none', color: '#fff', fontWeight: 700, padding: '0 40px', height: 48 }}
-          onClick={() => navigate('/shop')}>
-          Mua sắm ngay
-        </Button>
-      </div>
+      <BannerSlider />
 
-      {/* Categories */}
-      <div style={{ padding: '60px 32px' }}>
-        <Typography.Title level={2} style={{ textAlign: 'center', marginBottom: 32 }}>Danh Mục</Typography.Title>
-        <Row gutter={[16, 16]} justify="center">
-          {topCategories.map((cat) => (
-            <Col xs={12} sm={8} md={6} key={cat.category_id}>
-              <Card hoverable onClick={() => navigate(`/shop?category=${cat.category_id}`)}
-                cover={<div style={{ height: 140, background: '#f5f0ea', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>👗</div>}>
-                <Card.Meta title={<div style={{ textAlign: 'center' }}>{cat.name}</div>} />
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </div>
+      <section className="landing-section">
+        <div className="c-container">
+          <h2 className="c-section-title">Danh Mục Sản Phẩm</h2>
+          <div className="landing-categories">
+            {topCategories.map((cat) => (
+              <CategoryCard key={cat.category_id} category={cat} />
+            ))}
+          </div>
+        </div>
+      </section>
 
-      {/* Featured Products */}
-      <div style={{ padding: '0 32px 60px', background: '#faf8f5' }}>
-        <Typography.Title level={2} style={{ textAlign: 'center', paddingTop: 60, marginBottom: 32 }}>Sản Phẩm Nổi Bật</Typography.Title>
-        <Row gutter={[16, 16]}>
-          {featuredProducts.map((p) => (
-            <Col xs={12} sm={12} md={6} key={p.product_id}>
-              <Card hoverable onClick={() => navigate(`/shop/${p.product_id}`)}
-                cover={<img alt={p.name} src={p.images[0]} style={{ height: 220, objectFit: 'cover' }} />}>
-                <Typography.Text strong style={{ display: 'block' }}>{p.name}</Typography.Text>
-                <Typography.Text style={{ color: '#c9a96e', fontWeight: 700 }}>
-                  {formatCurrency(p.sale_price || p.base_price)}
-                </Typography.Text>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </div>
+      <section className="landing-section landing-section--alt">
+        <div className="c-container">
+          <h2 className="c-section-title">Sản Phẩm Nổi Bật</h2>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+          ) : (
+            <div className="product-grid">
+              {featured.map((p) => <ProductCard key={p.product_id} product={p} />)}
+            </div>
+          )}
+          <div style={{ textAlign: 'center', marginTop: 40 }}>
+            <button className="c-btn-outline" onClick={() => navigate('/shop')}>
+              Xem tất cả sản phẩm →
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-section">
+        <div className="c-container">
+          <div className="deals-banner">
+            <div className="deals-banner__text">
+              <div className="deals-banner__label">⚡ Flash Sale</div>
+              <h2 className="deals-banner__title">Ưu Đãi Đặc Biệt<br />Hôm Nay</h2>
+              <p className="deals-banner__sub">Hàng trăm sản phẩm giảm giá sâu — chỉ trong hôm nay!</p>
+              <button className="banner-slide__btn" onClick={() => navigate('/shop?is_sale=true')}>
+                Xem khuyến mãi
+              </button>
+            </div>
+            <div style={{ fontSize: 120, opacity: 0.15, userSelect: 'none' }}>🏷️</div>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ background: '#1a1a1a', padding: '32px 0' }}>
+        <div className="c-container">
+          <Row gutter={[24, 24]} justify="center">
+            {[
+              { icon: '🚚', title: 'Miễn phí vận chuyển', sub: 'Cho đơn từ 500.000₫' },
+              { icon: '↩️', title: 'Đổi trả 30 ngày', sub: 'Không cần lý do' },
+              { icon: '💳', title: 'Thanh toán an toàn', sub: 'COD, VNPay, MoMo' },
+              { icon: '🎁', title: 'Ưu đãi thành viên', sub: 'Giảm thêm khi tích điểm' },
+            ].map((item) => (
+              <Col xs={12} sm={6} key={item.title} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>{item.icon}</div>
+                <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{item.title}</div>
+                <div style={{ color: '#999', fontSize: 12 }}>{item.sub}</div>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      </section>
     </div>
   );
 };

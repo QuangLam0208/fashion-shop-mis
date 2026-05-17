@@ -1,43 +1,47 @@
 // src/customer/routes/index.js
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 
 import CustomerLayout       from '../layouts/CustomerLayout';
 import CustomerPrivateRoute from '../components/CustomerPrivateRoute';
 
-// Auth pages
+// ── Auth (không có Navbar/Footer)
 import CustomerLoginPage  from '../pages/auth/CustomerLoginPage';
 import RegisterPage       from '../pages/auth/RegisterPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
+import ResetPasswordPage  from '../pages/auth/ResetPasswordPage';
+import VerifyEmailPage    from '../pages/auth/VerifyEmailPage';
 
-// Shop pages
+// ── Shop (public)
 import LandingPage       from '../pages/landing/LandingPage';
 import ProductListPage   from '../pages/shop/ProductListPage';
 import ProductDetailPage from '../pages/shop/ProductDetailPage';
 import CategoryPage      from '../pages/shop/CategoryPage';
 
-// Checkout pages
+// ── Checkout
 import CartPage         from '../pages/checkout/CartPage';
 import CheckoutPage     from '../pages/checkout/CheckoutPage';
 import OrderConfirmPage from '../pages/checkout/OrderConfirmPage';
 
-// Account pages
-import ProfilePage    from '../pages/account/ProfilePage';
-import MyOrdersPage   from '../pages/account/MyOrdersPage';
+// ── Account (protected)
+import ProfilePage     from '../pages/account/ProfilePage';
+import MyOrdersPage    from '../pages/account/MyOrdersPage';
 import OrderDetailPage from '../pages/account/OrderDetailPage';
-import WishlistPage   from '../pages/account/WishlistPage';
+import WishlistPage    from '../pages/account/WishlistPage';
 
-// 404
+// ── 404
 import NotFoundPage from '../pages/NotFoundPage';
 
 const CustomerRoutes = () => (
   <Routes>
-    {/* ── Auth (không có layout) ── */}
+    {/* ── Auth — không có layout ── */}
     <Route path="login"           element={<CustomerLoginPage />} />
     <Route path="register"        element={<RegisterPage />} />
     <Route path="forgot-password" element={<ForgotPasswordPage />} />
+    <Route path="reset-password"  element={<ResetPasswordPage />} />
+    <Route path="verify-email"    element={<VerifyEmailPage />} />
 
-    {/* ── Có layout (Navbar + Footer) ── */}
+    {/* ── Có Navbar + Footer ── */}
     <Route element={<CustomerLayout />}>
       {/* Public */}
       <Route index              element={<LandingPage />} />
@@ -47,13 +51,13 @@ const CustomerRoutes = () => (
 
       {/* Protected */}
       <Route element={<CustomerPrivateRoute />}>
-        <Route path="cart"                    element={<CartPage />} />
-        <Route path="checkout"                element={<CheckoutPage />} />
-        <Route path="checkout/confirm"        element={<OrderConfirmPage />} />
-        <Route path="account/profile"         element={<ProfilePage />} />
-        <Route path="account/orders"          element={<MyOrdersPage />} />
-        <Route path="account/orders/:id"      element={<OrderDetailPage />} />
-        <Route path="account/wishlist"        element={<WishlistPage />} />
+        <Route path="cart"               element={<CartPage />} />
+        <Route path="checkout"           element={<CheckoutPage />} />
+        <Route path="checkout/confirm"   element={<OrderConfirmPage />} />
+        <Route path="account/profile"    element={<ProfilePage />} />
+        <Route path="account/orders"     element={<MyOrdersPage />} />
+        <Route path="account/orders/:id" element={<OrderDetailPage />} />
+        <Route path="account/wishlist"   element={<WishlistPage />} />
       </Route>
     </Route>
 

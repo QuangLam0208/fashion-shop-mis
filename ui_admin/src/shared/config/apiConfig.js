@@ -5,14 +5,13 @@ const BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
 export const API_ENDPOINTS = {
   AUTH: {
-    LOGIN:          `${BASE}/api/auth/login`,
-    LOGOUT:         `${BASE}/api/auth/logout`,
-    REFRESH:        `${BASE}/api/auth/refresh`,
-    ME:             `${BASE}/api/auth/me`,
-    REGISTER:       `${BASE}/api/auth/register`,
-    FORGOT_PASSWORD:`${BASE}/api/auth/forgot-password`,
-    RESET_PASSWORD: `${BASE}/api/auth/reset-password`,
-    VERIFY_EMAIL:   `${BASE}/api/auth/verify-email`,
+    LOGIN:           `${BASE}/api/auth/login`,
+    LOGOUT:          `${BASE}/api/auth/logout`,
+    REFRESH_TOKEN:   `${BASE}/api/auth/refresh-token`,
+    REGISTER:        `${BASE}/api/auth/register`,
+    FORGOT_PASSWORD: `${BASE}/api/auth/forgot-password`,
+    RESET_PASSWORD:  `${BASE}/api/auth/reset-password`,
+    VERIFY_EMAIL:    `${BASE}/api/auth/verify-email`,
   },
   DASHBOARD: {
     STATS:        `${BASE}/api/admin/dashboard/stats`,
