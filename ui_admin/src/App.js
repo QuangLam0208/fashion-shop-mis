@@ -1,19 +1,56 @@
+// src/App.js — FINAL
 import React from 'react';
-import { AuthProvider } from './context/AuthContext';
-import AppRoutes from './routes';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import viVN from 'antd/locale/vi_VN';
+
+// Admin
+import { AuthProvider } from './admin/context/AuthContext';
+import AdminRoutes from './admin/routes';
+
+// Customer
+import { CustomerAuthProvider } from './customer/context/CustomerAuthContext';
+import { CartProvider } from './customer/context/CartContext';
+import CustomerRoutes from './customer/routes';
 
 /**
  * App — root component
  *
- * Chỉ có 2 việc:
- *  1. Bọc toàn app trong AuthProvider
- *  2. Render AppRoutes (toàn bộ routing nằm trong routes/index.js)
+ * Phân luồng:
+ *   /admin/*  → AdminRoutes  (AuthProvider — admin auth)
+ *   /*        → CustomerRoutes (CustomerAuthProvider + CartProvider)
+ *
+ * Mỗi nhánh dùng AuthContext riêng, không ảnh hưởng nhau.
  */
 const App = () => {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ConfigProvider locale={viVN}>
+      <BrowserRouter>
+        <Routes>
+          {/* ── ADMIN — toàn bộ /admin/* ── */}
+          <Route
+            path="/admin/*"
+            element={
+              <AuthProvider>
+                <AdminRoutes />
+              </AuthProvider>
+            }
+          />
+
+          {/* ── CUSTOMER — toàn bộ /* ── */}
+          <Route
+            path="/*"
+            element={
+              <CustomerAuthProvider>
+                <CartProvider>
+                  <CustomerRoutes />
+                </CartProvider>
+              </CustomerAuthProvider>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </ConfigProvider>
   );
 };
 

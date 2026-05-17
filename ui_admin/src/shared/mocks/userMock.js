@@ -1,0 +1,36 @@
+// src/shared/mocks/userMock.js
+export const mockUsers = [
+  {
+    user_id: 1,
+    full_name: 'Admin Hệ Thống',
+    email: 'admin@fashion.com',
+    password: 'admin123',
+    phone: '0901234567',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    avatar: null,
+    created_at: '2024-01-01T00:00:00',
+  },
+  {
+    user_id: 2,
+    full_name: 'Nguyễn Văn An',
+    email: 'customer@fashion.com',
+    password: '123456',
+    phone: '0912345678',
+    role: 'CUSTOMER',
+    status: 'ACTIVE',
+    avatar: null,
+    created_at: '2024-03-15T08:30:00',
+  },
+  {
+    user_id: 3,
+    full_name: 'Trần Thị Bình',
+    email: 'binh@gmail.com',
+    password: '123456',
+    phone: '0923456789',
+    role: 'CUSTOMER',
+    status: 'ACTIVE',
+    avatar: null,
+    created_at: '2024-04-20T10:00:00',
+  },
+];
