@@ -82,13 +82,20 @@ public class CategoryServiceImpl implements CategoryService {
         category.setName(request.getName());
 
         if (request.getParentId() != null) {
+
             if (id.equals(request.getParentId())) {
                 throw new RuntimeException("Danh mục không thể tự làm cha của chính nó");
             }
 
             Category parent = categoryRepository.findById(request.getParentId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục cha"));
+
+            if (isInvalidParent(request.getParentId(), id)) {
+                throw new RuntimeException("Không thể gán danh mục con/cháu làm danh mục cha");
+            }
+
             category.setParent(parent);
+
         } else {
             category.setParent(null);
         }
@@ -104,5 +111,18 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         categoryRepository.deleteById(id);
+    }
+    private boolean isInvalidParent(Long newParentId, Long currentCategoryId) {
+        Long parentId = newParentId;
+
+        while (parentId != null) {
+            if (parentId.equals(currentCategoryId)) {
+                return true;
+            }
+
+            parentId = categoryRepository.findParentIdByCategoryId(parentId);
+        }
+
+        return false;
     }
 }
