@@ -44,11 +44,18 @@ public class JwtTokenProvider {
      */
     public String generateAccessToken(UserDetails userDetails) {
         Map<String, Object> extraClaims = new HashMap<>();
-        // Lưu role vào claim để frontend có thể decode
+
+        // Ép kiểu UserDetails về User của bạn để lấy ID
+        if (userDetails instanceof com.fashion.model.User) {
+            extraClaims.put("userId", ((com.fashion.model.User) userDetails).getId());
+        }
+
+        // Lưu role vào claim
         extraClaims.put("role", userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .findFirst()
                 .orElse("ROLE_CUSTOMER"));
+
         return buildToken(extraClaims, userDetails, accessTokenExpiration);
     }
 
