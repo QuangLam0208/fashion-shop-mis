@@ -1,25 +1,20 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { AuthProvider } from './context/AuthContext';
+import AppRoutes from './routes';
 
-function App() {
+/**
+ * App — root component
+ *
+ * Chỉ có 2 việc:
+ *  1. Bọc toàn app trong AuthProvider
+ *  2. Render AppRoutes (toàn bộ routing nằm trong routes/index.js)
+ */
+const App = () => {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
-}
+};
 
 export default App;
