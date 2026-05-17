@@ -66,6 +66,8 @@ public class SecurityConfig {
 
                 // Phân quyền URL
                 .authorizeHttpRequests(auth -> auth
+//                        // Thêm dòng này để test POST/PUT/DELETE không cần Token
+//                        .requestMatchers("/api/categories/**").permitAll()
                         // === PUBLIC ENDPOINTS (không cần đăng nhập) ===
                         .requestMatchers("/api/auth/**").permitAll()
 

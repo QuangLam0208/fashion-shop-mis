@@ -6,7 +6,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
@@ -18,4 +19,6 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     // Tìm danh mục theo tên
     Optional<Category> findByName(String name);
+    @Query("SELECT c.parent.id FROM Category c WHERE c.id = :id")
+    Long findParentIdByCategoryId(@Param("id") Long id);
 }
