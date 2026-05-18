@@ -20,7 +20,7 @@ public class CartController {
     private final CartService cartService;
 
     // XEM GIỎ HÀNG
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<CartResponseDTO> getCartItems() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         CartResponseDTO response = cartService.getCartItems(userId);
@@ -28,7 +28,7 @@ public class CartController {
     }
 
     // THÊM VÀO GIỎ
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<CartItemResponseDTO> addToCart(
             @Valid @RequestBody AddToCartRequestDTO dto) {
         Long userId = SecurityUtils.getAuthenticatedUserId();
@@ -37,7 +37,7 @@ public class CartController {
     }
 
     // CẬP NHẬT SỐ LƯỢNG
-    @PutMapping("/items")
+    @PutMapping("/update")
     public ResponseEntity<CartItemResponseDTO> updateCartItem(
             @Valid @RequestBody UpdateCartItemRequestDTO dto) {
         Long userId = SecurityUtils.getAuthenticatedUserId();
@@ -46,7 +46,7 @@ public class CartController {
     }
 
     // XÓA KHỎI GIỎ
-    @DeleteMapping("/items/{itemId}")
+    @DeleteMapping("/delete/{itemId}")
     public ResponseEntity<MessageResponseDTO> removeCartItem(
             @PathVariable Long itemId) {
         Long userId = SecurityUtils.getAuthenticatedUserId();
