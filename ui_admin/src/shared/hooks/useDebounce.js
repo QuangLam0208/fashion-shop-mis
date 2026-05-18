@@ -1,14 +1,12 @@
+// src/shared/hooks/useDebounce.js
 import { useState, useEffect } from 'react';
 
 /**
- * Debounce value — trì hoãn cập nhật giá trị để tránh gọi API liên tục
+ * useDebounce — trì hoãn cập nhật value sau `delay` ms
  *
  * Sử dụng:
- *   const debouncedSearch = useDebounce(searchValue, 400);
- *   useEffect(() => { fetchData(debouncedSearch) }, [debouncedSearch]);
- *
- * @param {any}    value - giá trị cần debounce (thường là input search)
- * @param {number} delay - thời gian trễ (ms), mặc định 400ms
+ *   const debouncedSearch = useDebounce(searchText, 400);
+ *   useEffect(() => { fetchData(debouncedSearch); }, [debouncedSearch]);
  */
 const useDebounce = (value, delay = 400) => {
   const [debouncedValue, setDebouncedValue] = useState(value);

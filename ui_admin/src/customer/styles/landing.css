@@ -1,0 +1,231 @@
+/* src/customer/styles/landing.css */
+@import './customer.css';
+
+/* ═══════════════════════════════════════
+   Hero Banner / BannerSlider
+═══════════════════════════════════════ */
+.banner-slider {
+  position: relative;
+  overflow: hidden;
+}
+
+.banner-slide {
+  position: relative;
+  height: 560px;
+  display: flex !important;
+  align-items: center;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) { .banner-slide { height: 380px; } }
+
+.banner-slide__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.banner-slide__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(26,26,26,0.75) 0%, rgba(26,26,26,0.2) 60%, transparent 100%);
+}
+
+.banner-slide__content {
+  position: relative;
+  z-index: 1;
+  padding: 0 var(--space-3xl);
+  max-width: 560px;
+  color: var(--c-white);
+  animation: bannerFadeIn 0.8s ease;
+}
+
+@keyframes bannerFadeIn {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.banner-slide__label {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--c-gold-light);
+  margin-bottom: var(--space-md);
+}
+
+.banner-slide__title {
+  font-family: var(--font-serif);
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: var(--space-md);
+}
+
+@media (max-width: 768px) { .banner-slide__title { font-size: 2rem; } }
+
+.banner-slide__desc {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin-bottom: var(--space-xl);
+  line-height: 1.6;
+}
+
+.banner-slide__btn {
+  display: inline-block;
+  background: var(--c-gold);
+  color: var(--c-white);
+  padding: 14px 36px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: none;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.banner-slide__btn:hover {
+  background: var(--c-gold-dark);
+  transform: translateY(-2px);
+}
+
+/* Ant Carousel custom dots */
+.banner-slider .slick-dots li button {
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+}
+
+.banner-slider .slick-dots li.slick-active button {
+  background: var(--c-gold);
+}
+
+/* ═══════════════════════════════════════
+   CategoryCard
+═══════════════════════════════════════ */
+.category-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.category-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.category-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.category-card:hover .category-card__image {
+  transform: scale(1.08);
+}
+
+.category-card__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(26,26,26,0.75) 0%,
+    rgba(26,26,26,0.1) 60%,
+    transparent 100%
+  );
+}
+
+.category-card__name {
+  position: absolute;
+  bottom: var(--space-lg);
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--c-white);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 0 var(--space-md);
+}
+
+/* ═══════════════════════════════════════
+   LandingPage Sections
+═══════════════════════════════════════ */
+.landing-section {
+  padding: var(--space-3xl) 0;
+}
+
+.landing-section--alt {
+  background: var(--c-bg-2);
+}
+
+.landing-categories {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-lg);
+}
+
+@media (max-width: 768px) {
+  .landing-categories { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Deals banner */
+.deals-banner {
+  background: linear-gradient(135deg, var(--c-dark) 0%, #3d2b1f 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--space-3xl);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  overflow: hidden;
+  position: relative;
+}
+
+.deals-banner::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: rgba(201,169,110,0.15);
+}
+
+.deals-banner__text { color: var(--c-white); }
+
+.deals-banner__label {
+  font-size: 0.8rem;
+  letter-spacing: 3px;
+  color: var(--c-gold-light);
+  text-transform: uppercase;
+  margin-bottom: var(--space-sm);
+}
+
+.deals-banner__title {
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: var(--space-md);
+}
+
+.deals-banner__sub {
+  opacity: 0.8;
+  margin-bottom: var(--space-xl);
+}
+
+@media (max-width: 768px) {
+  .deals-banner { flex-direction: column; text-align: center; padding: var(--space-xl); }
+  .deals-banner__title { font-size: 1.75rem; }
+}

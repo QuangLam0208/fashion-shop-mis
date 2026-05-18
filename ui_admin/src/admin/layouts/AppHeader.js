@@ -14,9 +14,9 @@ const AppHeader = ({ collapsed, onCollapse }) => {
   const menuItems = [
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
   ];
-
+  
   const handleMenu = ({ key }) => {
-    if (key === 'logout') { logout(); navigate('login'); }
+    if (key === 'logout') { logout(); navigate('/admin/login'); }
   };
 
   return (

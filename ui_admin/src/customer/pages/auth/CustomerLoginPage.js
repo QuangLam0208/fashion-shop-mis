@@ -68,10 +68,6 @@ const CustomerLoginPage = () => {
 
           <div className="cl-form-header">
             <h1 className="cl-form-title">Đăng nhập</h1>
-            <p className="cl-form-sub">
-              Chưa có tài khoản?{' '}
-              <Link to="/register" className="cl-link">Đăng ký ngay</Link>
-            </p>
           </div>
 
           <Form

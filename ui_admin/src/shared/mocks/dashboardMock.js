@@ -4,6 +4,7 @@ export const mockDashboardStats = {
   total_orders:    348,
   total_customers: 156,
   total_products:  89,
+  pending_orders:  24,
   revenue_growth:  12.5,
   order_growth:    8.3,
 };
