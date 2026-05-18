@@ -1,65 +1,69 @@
-// src/admin/context/AuthContext.js
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { mockUsers } from '../../shared/mocks/userMock';
-import { USE_MOCK, API_ENDPOINTS } from '../../shared/config/apiConfig';
-import axiosInstance from '../../shared/config/axiosInstance';
-
-const STORAGE_KEY = 'fashion_admin_token';
+import { ADMIN_TOKEN_KEY, REFRESH_TOKEN_KEY, ADMIN_USER_KEY } from '../../shared/config/axiosInstance';
+import { authService } from '../services/authService';
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [token, setToken]             = useState(() => localStorage.getItem(STORAGE_KEY));
-  const [loading, setLoading]         = useState(true);
+  const [token,       setToken]       = useState(null);
+  const [loading,     setLoading]     = useState(true);
 
+  // Khởi tạo từ localStorage
   useEffect(() => {
-    const init = async () => {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) { setLoading(false); return; }
-      try {
-        if (USE_MOCK) {
-          const uid = parseInt(saved.replace('mock-admin-jwt-', ''), 10);
-          const u   = mockUsers.find((u) => u.user_id === uid && u.role === 'ADMIN');
-          if (u) { setCurrentUser(u); setToken(saved); }
-          else   { localStorage.removeItem(STORAGE_KEY); setToken(null); }
-        } else {
-          const res = await axiosInstance.get(API_ENDPOINTS.AUTH.ME);
-          setCurrentUser(res.data); setToken(saved);
-        }
-      } catch {
-        localStorage.removeItem(STORAGE_KEY); setToken(null);
-      } finally {
-        setLoading(false);
+    try {
+      const savedToken = localStorage.getItem(ADMIN_TOKEN_KEY);
+      const savedUser  = localStorage.getItem(ADMIN_USER_KEY);
+      if (savedToken && savedUser) {
+        setToken(savedToken);
+        setCurrentUser(JSON.parse(savedUser));
       }
-    };
-    init();
-  }, []);
-
-  const login = useCallback(async (email, password) => {
-    if (USE_MOCK) {
-      const u = mockUsers.find(
-        (u) => u.email === email && u.password === password && u.role === 'ADMIN' && u.status === 'ACTIVE'
-      );
-      if (!u) { const e = new Error('Sai email hoặc mật khẩu'); e.response = { data: { message: 'Sai email hoặc mật khẩu' } }; throw e; }
-      const t = `mock-admin-jwt-${u.user_id}`;
-      localStorage.setItem(STORAGE_KEY, t);
-      setToken(t); setCurrentUser(u);
-      return;
+    } catch {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem(ADMIN_USER_KEY);
+    } finally {
+      setLoading(false);
     }
-    const res = await axiosInstance.post(API_ENDPOINTS.AUTH.LOGIN, { email, password });
-    const { token: t, user } = res.data;
-    localStorage.setItem(STORAGE_KEY, t);
-    setToken(t); setCurrentUser(user);
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setToken(null); setCurrentUser(null);
+  // login: nhận user + accessToken + refreshToken từ API response
+  const login = useCallback(async (email, password, remember) => {
+    // 1. Context tự gọi API
+    const res = await authService.login(email, password, remember);
+    
+    // 2. Tự xử lý JSON trả về
+    const userData = {
+      id: res.userId,
+      email: res.email,
+      full_name: res.fullName,
+      role: res.role
+    };
+    
+    // 3. Tự lưu state
+    setCurrentUser(userData);
+    setToken(res.accessToken);
+    localStorage.setItem(ADMIN_TOKEN_KEY, res.accessToken);
+    localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(userData));
+    if (res.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+    }
   }, []);
+
+  // logout: clear state + storage
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    setToken(null);
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(ADMIN_USER_KEY);
+  }, []);
+
+  const isAuthenticated = Boolean(token && currentUser);
+  const isAdmin         = currentUser?.role === 'ADMIN';
 
   return (
-    <AuthContext.Provider value={{ currentUser, token, loading, isAuthenticated: !!currentUser, login, logout }}>
+    <AuthContext.Provider value={{ currentUser, token, loading, isAuthenticated, isAdmin, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
