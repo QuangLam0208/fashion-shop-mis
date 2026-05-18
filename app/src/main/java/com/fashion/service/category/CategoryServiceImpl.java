@@ -24,9 +24,11 @@ public class CategoryServiceImpl implements CategoryService {
 
         if (category.getParent() != null) {
             dto.setParentId(category.getParent().getId());
+            dto.setParentName(category.getParent().getName());
         }
 
         if (category.getChildren() != null && !category.getChildren().isEmpty()) {
+            dto.setChildCount(category.getChildren().size());
             dto.setChildren(category.getChildren().stream()
                     .map(this::mapToDTO)
                     .collect(Collectors.toList()));
