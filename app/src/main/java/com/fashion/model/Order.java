@@ -5,6 +5,7 @@ import com.fashion.model.enums.PaymentMethod;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -24,7 +25,7 @@ public class Order {
     private Long id;
 
     @Column(nullable = false)
-    private Date orderDate;
+    private Instant orderDate;
 
     @Column(nullable = false)
     private Double totalAmount;

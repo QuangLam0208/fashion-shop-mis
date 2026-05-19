@@ -31,21 +31,4 @@ public class CategoryController {
         return ResponseEntity.ok(categoryService.getCategoryByName(name));
     }
 
-    @PostMapping("/create")
-    public ResponseEntity<CategoryResponseDTO> createCategory(@RequestBody CategoryRequestDTO request) {
-        return new ResponseEntity<>(categoryService.createCategory(request), HttpStatus.CREATED);
-    }
-
-    @PutMapping("/update/{id}")
-    public ResponseEntity<CategoryResponseDTO> updateCategory(
-            @PathVariable Long id,
-            @RequestBody CategoryRequestDTO request) {
-        return ResponseEntity.ok(categoryService.updateCategory(id, request));
-    }
-
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteCategory(@PathVariable Long id) {
-        categoryService.deleteCategory(id);
-        return ResponseEntity.ok("Xóa danh mục thành công!");
-    }
 }
