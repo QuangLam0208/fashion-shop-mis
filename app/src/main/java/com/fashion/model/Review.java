@@ -28,7 +28,7 @@ public class Review {
     private String comment;
 
     @Column(nullable = false, updatable = false)
-    private Date createdAt;
+    private Instant createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
