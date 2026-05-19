@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/products")
 @RequiredArgsConstructor
 public class ProductController {
 
@@ -31,7 +31,7 @@ public class ProductController {
     /**
      * GET /api/products?keyword=áo&page=0&size=12
      */
-    @GetMapping("/products")
+    @GetMapping
     public ResponseEntity<Page<ProductSummaryResponseDTO>> getProducts(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
@@ -44,7 +44,7 @@ public class ProductController {
     /**
      * GET /api/products/{id}
      */
-    @GetMapping("/products/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<ProductDetailResponseDTO> getProductDetail(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductDetail(id));
     }
@@ -52,7 +52,7 @@ public class ProductController {
     /**
      * GET /api/products/{id}/related?limit=4
      */
-    @GetMapping("/products/{id}/related")
+    @GetMapping("/{id}/related")
     public ResponseEntity<List<ProductSummaryResponseDTO>> getRelatedProducts(
             @PathVariable Long id,
             @RequestParam(defaultValue = "4") int limit
@@ -64,56 +64,9 @@ public class ProductController {
      * GET /api/products/categories
      * Dùng cho dropdown chọn danh mục khi tạo/lọc sản phẩm
      */
-    @GetMapping("/products/categories")
+    @GetMapping("/categories")
     public ResponseEntity<List<CategoryResponseDTO>> getAllCategories() {
         return ResponseEntity.ok(productService.getAllCategories());
     }
 
-    // ========== ADMIN ==========
-
-    /**
-     * GET /api/admin/products?keyword=&status=ACTIVE&page=0&size=10
-     */
-    @GetMapping("/admin/products")
-    public ResponseEntity<Page<ProductSummaryResponseDTO>> getAdminProducts(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) ProductStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        return ResponseEntity.ok(productService.getAdminProducts(keyword, status, pageable));
-    }
-
-    /**
-     * POST /api/admin/products
-     */
-    @PostMapping("/admin/products")
-    public ResponseEntity<ProductDetailResponseDTO> createProduct(
-            @Valid @RequestBody CreateProductRequestDTO dto
-    ) {
-        return ResponseEntity.status(201).body(productService.createProduct(dto));
-    }
-
-    /**
-     * PUT /api/admin/products/{id}
-     */
-    @PutMapping("/admin/products/{id}")
-    public ResponseEntity<ProductDetailResponseDTO> updateProduct(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateProductRequestDTO dto
-    ) {
-        return ResponseEntity.ok(productService.updateProduct(id, dto));
-    }
-
-    /**
-     * DELETE /api/admin/products/{id}
-     */
-    @DeleteMapping("/admin/products/{id}")
-    public ResponseEntity<MessageResponseDTO> deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
-        return ResponseEntity.ok(MessageResponseDTO.builder()
-                .message("Xóa sản phẩm thành công!")
-                .build());
-    }
 }
