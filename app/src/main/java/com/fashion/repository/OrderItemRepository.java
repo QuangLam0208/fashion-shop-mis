@@ -15,28 +15,28 @@ import java.util.Optional;
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 
     // Tìm đơn hàng thành công gần nhất của 1 người dùng cho 1 sản phẩm cụ thể
-    Optional<OrderItem> findFirstByOrder_User_IdAndProductVariant_Product_IdOrderByOrder_OrderDateDesc(Long userId, Long productId);
+    Optional<OrderItem> findFirstByOrderUserIdAndProductVariantProductIdOrderByOrderOrderDateDesc(Long userId, Long productId);
 
     // Tìm OrderItem chưa đánh giá gần nhất của 1 người dùng cho 1 sản phẩm cụ thể
-    Optional<OrderItem> findFirstByOrder_User_IdAndProductVariant_Product_IdAndIsReviewedFalseOrderByOrder_OrderDateDesc(Long userId, Long productId);
+    Optional<OrderItem> findFirstByOrderUserIdAndProductVariantProductIdAndIsReviewedFalseOrderByOrderOrderDateDesc(Long userId, Long productId);
 
     // Lấy tất cả OrderItem của 1 đơn hàng
-    List<OrderItem> findByOrder_Id(Long orderId);
+    List<OrderItem> findByOrderId(Long orderId);
 
     // Kiểm tra Khách hàng X đã mua thành công Sản phẩm Y chưa (để cấp quyền Đánh giá)
-    boolean existsByOrder_User_IdAndStatusAndProductVariant_Product_Id(Long userId, OrderStatus status, Long productId);
+    boolean existsByOrderUserIdAndStatusAndProductVariantProductId(Long userId, OrderStatus status, Long productId);
 
     // Lấy tất cả OrderItem của 1 đơn theo trạng thái cụ thể
-    List<OrderItem> findByOrder_IdAndStatus(Long orderId, OrderStatus status);
+    List<OrderItem> findByOrderIdAndStatus(Long orderId, OrderStatus status);
 
     // Truy vấn dành cho UI Cá nhân: Tách mảnh sản phẩm dựa vào Phân luồng Status và User
-    Page<OrderItem> findByOrder_User_IdAndStatusInOrderByOrder_OrderDateDesc(Long userId, List<OrderStatus> statuses, Pageable pageable);
+    Page<OrderItem> findByOrderUserIdAndStatusInOrderByOrderOrderDateDesc(Long userId, List<OrderStatus> statuses, Pageable pageable);
 
     // Truy vấn có lọc trạng thái đánh giá (Dùng cho tab Đã giao & Đánh giá)
-    Page<OrderItem> findByOrder_User_IdAndStatusInAndIsReviewedOrderByOrder_OrderDateDesc(Long userId, List<OrderStatus> statuses, boolean isReviewed, Pageable pageable);
+    Page<OrderItem> findByOrderUserIdAndStatusInAndIsReviewedOrderByOrderOrderDateDesc(Long userId, List<OrderStatus> statuses, boolean isReviewed, Pageable pageable);
 
     // Truy vấn các sản phẩm đã đánh giá (Dùng cho Lịch sử Review)
-    Page<OrderItem> findByOrder_User_IdAndIsReviewedTrueOrderByOrder_OrderDateDesc(Long userId, Pageable pageable);
+    Page<OrderItem> findByOrderUserIdAndIsReviewedTrueOrderByOrderOrderDateDesc(Long userId, Pageable pageable);
 
     // DASHBOARD - Top 5 sản phẩm bán chạy nhất
     @Query("SELECT oi.productName, SUM(oi.quantity), SUM(oi.quantity * oi.price) " +
