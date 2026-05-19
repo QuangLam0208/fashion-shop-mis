@@ -1,4 +1,4 @@
-package com.fashion.controller.api;
+package com.fashion.controller.api.admin;
 
 import com.fashion.dto.request.CreateCouponRequestDTO;
 import com.fashion.dto.request.UpdateCouponRequestDTO;
