@@ -1,4 +1,4 @@
-package com.fashion.controller.api;
+package com.fashion.controller.api.admin;
 
 import com.fashion.dto.response.DashboardResponseDTO;
 import com.fashion.service.dashboard.DashboardService;
@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/admin/dashboard")
 @RequiredArgsConstructor
-public class DashboardController {
+public class AdminDashboardController {
 
     private final DashboardService dashboardService;
 
