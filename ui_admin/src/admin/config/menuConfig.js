@@ -1,4 +1,3 @@
-// src/admin/config/menuConfig.js
 import {
   DashboardOutlined, ShoppingOutlined, AppstoreOutlined,
   OrderedListOutlined, RollbackOutlined, UserOutlined,

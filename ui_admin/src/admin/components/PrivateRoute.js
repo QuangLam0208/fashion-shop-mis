@@ -1,12 +1,10 @@
-// src/admin/components/PrivateRoute.js
 import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { Spin } from 'antd';
 import useAuth from '../hooks/useAuth';
 
 const PrivateRoute = () => {
   const { isAuthenticated, loading } = useAuth();
-  const location = useLocation();
 
   if (loading) {
     return (

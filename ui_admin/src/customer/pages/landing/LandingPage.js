@@ -1,4 +1,3 @@
-// src/customer/pages/landing/LandingPage.js
 import React, { useEffect, useState } from 'react';
 import { Row, Col, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -7,20 +6,34 @@ import CategoryCard  from '../../components/CategoryCard';
 import ProductCard   from '../../components/ProductCard';
 import '../../styles/landing.css';
 import '../../styles/customer.css';
-import { mockCategories } from '../../../shared/mocks/catagoryMock';
 import { shopProductService } from '../../services/shopProductService';
+import { shopCategoryService } from '../../services/shopCategoryService';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const [featured, setFeatured] = useState([]);
   const [loading, setLoading]   = useState(true);
-  const topCategories = mockCategories.filter((c) => !c.parent_id);
+  const [topCategories, setTopCategories] = useState([]);
 
   useEffect(() => {
-    shopProductService.getAll({ limit: 8, sort: 'rating' }).then((res) => {
-      setFeatured(res.data || []);
-      setLoading(false);
-    });
+    const fetchLandingData = async () => {
+      try {
+        setLoading(true);
+        const [productRes, categories] = await Promise.all([
+          shopProductService.getAll({ limit: 8, sort: 'rating' }),
+          shopCategoryService.getParents()
+        ]);
+
+        setFeatured(productRes?.data || []);
+        setTopCategories(categories || []);
+      } catch (error) {
+        console.error("Lỗi tải dữ liệu trang chủ:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLandingData();
   }, []);
 
   return (

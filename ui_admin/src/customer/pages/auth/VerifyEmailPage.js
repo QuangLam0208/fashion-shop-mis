@@ -1,19 +1,24 @@
 // src/customer/pages/auth/VerifyEmailPage.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Spin, Result, Button } from 'antd';
 import { Link, useSearchParams } from 'react-router-dom';
 import customerAuthService from '../../services/customerAuthService';
 
 /**
- * VerifyEmailPage — user click link trong email → GET /api/auth/verify-email?token=xxx
+ * VerifyEmailPage
  * Route: /verify-email?token=xxx
+ *
+ * Fix: dùng useRef để chặn React StrictMode double-invoke useEffect,
+ * tránh gọi API 2 lần → token bị consumed lần đầu → lần 2 báo 400.
  */
 const VerifyEmailPage = () => {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
-
-  const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
+  const [searchParams]          = useSearchParams();
+  const token                   = searchParams.get('token');
+  const [status, setStatus]     = useState('loading'); // 'loading' | 'success' | 'error'
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Guard chặn StrictMode gọi 2 lần
+  const calledRef = useRef(false);
 
   useEffect(() => {
     if (!token) {
@@ -21,6 +26,10 @@ const VerifyEmailPage = () => {
       setErrorMsg('Không tìm thấy token xác thực. Vui lòng kiểm tra lại link trong email.');
       return;
     }
+
+    // Nếu đã gọi rồi (StrictMode unmount→remount) thì bỏ qua
+    if (calledRef.current) return;
+    calledRef.current = true;
 
     customerAuthService
       .verifyEmail(token)
@@ -60,12 +69,8 @@ const VerifyEmailPage = () => {
             Email của bạn đã được xác thực. Tài khoản đã kích hoạt — bạn có thể đăng nhập và mua sắm ngay!
           </p>
           <Link to="/login">
-            <Button
-              type="primary"
-              block
-              size="large"
-              style={{ background: '#1a1a1a', border: 'none', height: 50, fontWeight: 700, letterSpacing: 1 }}
-            >
+            <Button type="primary" block size="large"
+              style={{ background: '#1a1a1a', border: 'none', height: 50, fontWeight: 700, letterSpacing: 1 }}>
               Đăng nhập ngay
             </Button>
           </Link>
@@ -90,9 +95,7 @@ const VerifyEmailPage = () => {
           subTitle={errorMsg}
           extra={[
             <Link key="login" to="/login">
-              <Button type="primary" style={{ background: '#1a1a1a', border: 'none' }}>
-                Về đăng nhập
-              </Button>
+              <Button type="primary" style={{ background: '#1a1a1a', border: 'none' }}>Về đăng nhập</Button>
             </Link>,
             <Link key="register" to="/register">
               <Button>Đăng ký lại</Button>
