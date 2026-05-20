@@ -18,4 +18,5 @@ public interface CategoryService {
     CategoryResponseDTO updateCategory(Long id, CategoryRequestDTO request);
 
     void deleteCategory(Long id);
+    List<CategoryResponseDTO> searchCategoriesByName(String keyword);
 }
