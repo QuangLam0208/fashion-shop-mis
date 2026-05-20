@@ -126,4 +126,16 @@ public class CategoryServiceImpl implements CategoryService {
 
         return false;
     }
+    // Thêm đoạn code này vào trong CategoryServiceImpl.java
+
+    @Override
+    public List<CategoryResponseDTO> searchCategoriesByName(String keyword) {
+        // Tìm các danh mục chứa từ khóa
+        List<Category> categories = categoryRepository.findByNameContainingIgnoreCase(keyword);
+
+        // Map sang DTO và trả về danh sách
+        return categories.stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
 }
