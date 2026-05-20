@@ -34,10 +34,10 @@ public class Coupon {
     private DiscountType discountType;
 
     @Column(nullable = false)
-    private Date startDate;
+    private Instant startDate;
 
     @Column(nullable = false)
-    private Date expiryDate;
+    private Instant expiryDate;
 
     private Double minOrderAmount;
 

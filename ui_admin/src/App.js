@@ -1,25 +1,57 @@
-import logo from './logo.svg';
-import './App.css';
+// src/App.js — FINAL
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import viVN from 'antd/locale/vi_VN';
 
-function App() {
+// Admin
+import { AuthProvider } from './admin/context/AuthContext';
+import AdminRoutes from './admin/routes';
+
+// Customer
+import { CustomerAuthProvider } from './customer/context/CustomerAuthContext';
+import { CartProvider } from './customer/context/CartContext';
+import CustomerRoutes from './customer/routes';
+
+/**
+ * App — root component
+ *
+ * Phân luồng:
+ *   /admin/*  → AdminRoutes  (AuthProvider — admin auth)
+ *   /*        → CustomerRoutes (CustomerAuthProvider + CartProvider)
+ *
+ * Mỗi nhánh dùng AuthContext riêng, không ảnh hưởng nhau.
+ */
+const App = () => {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ConfigProvider locale={viVN}>
+      <BrowserRouter>
+        <Routes>
+          {/* ── ADMIN — toàn bộ /admin/* ── */}
+          <Route
+            path="/admin/*"
+            element={
+              <AuthProvider>
+                <AdminRoutes />
+              </AuthProvider>
+            }
+          />
+
+          {/* ── CUSTOMER — toàn bộ /* ── */}
+          <Route
+            path="/*"
+            element={
+              <CustomerAuthProvider>
+                <CartProvider>
+                  <CustomerRoutes />
+                </CartProvider>
+              </CustomerAuthProvider>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </ConfigProvider>
   );
-}
+};
 
 export default App;

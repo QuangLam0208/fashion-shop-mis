@@ -1,0 +1,216 @@
+/* src/customer/styles/customer.css
+   Import vào CustomerLayout.js hoặc index.js */
+
+/* ═══════════════════════════════════════════
+   CSS Variables — Fashion Customer Theme
+═══════════════════════════════════════════ */
+:root {
+  /* Brand Colors */
+  --c-gold:         #c9a96e;
+  --c-gold-dark:    #a8843a;
+  --c-gold-light:   #e8d4b0;
+  --c-gold-pale:    #faf3e8;
+  --c-dark:         #1a1a1a;
+  --c-dark-2:       #2c2c2c;
+  --c-dark-3:       #444444;
+
+  /* Text */
+  --c-text:         #333333;
+  --c-text-secondary: #666666;
+  --c-text-muted:   #999999;
+  --c-text-light:   #cccccc;
+
+  /* Backgrounds */
+  --c-bg:           #faf8f5;
+  --c-bg-2:         #f5f0ea;
+  --c-bg-3:         #ede8e0;
+  --c-white:        #ffffff;
+
+  /* Borders */
+  --c-border:       #e8e0d5;
+  --c-border-dark:  #d0c8bc;
+
+  /* Status */
+  --c-success:      #52c41a;
+  --c-warning:      #faad14;
+  --c-error:        #ff4d4f;
+  --c-info:         #1890ff;
+  --c-sale:         #e53935;
+
+  /* Spacing */
+  --space-xs:   4px;
+  --space-sm:   8px;
+  --space-md:   16px;
+  --space-lg:   24px;
+  --space-xl:   32px;
+  --space-2xl:  48px;
+  --space-3xl:  64px;
+
+  /* Border Radius */
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 4px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.12);
+  --shadow-xl:  0 16px 48px rgba(0,0,0,0.16);
+
+  /* Typography */
+  --font-serif: 'Playfair Display', 'Georgia', serif;
+  --font-sans:  'Lato', 'Segoe UI', sans-serif;
+
+  /* Navbar */
+  --navbar-height: 64px;
+
+  /* Transitions */
+  --transition: 0.25s ease;
+}
+
+/* ═══════════════════════════════════════════
+   Base Components Customer
+═══════════════════════════════════════════ */
+
+/* Container */
+.c-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-xl);
+}
+
+@media (max-width: 768px) {
+  .c-container { padding: 0 var(--space-md); }
+}
+
+/* Section Heading */
+.c-section-title {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--c-dark);
+  text-align: center;
+  margin-bottom: var(--space-xl);
+}
+
+.c-section-title::after {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 3px;
+  background: var(--c-gold);
+  margin: 12px auto 0;
+  border-radius: 2px;
+}
+
+/* Badge Sale */
+.c-badge-sale {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: var(--c-sale);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Price */
+.c-price {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  color: var(--c-gold-dark);
+  font-size: 1.05rem;
+}
+
+.c-price-original {
+  font-size: 0.875rem;
+  color: var(--c-text-muted);
+  text-decoration: line-through;
+  margin-right: var(--space-xs);
+}
+
+/* Buttons */
+.c-btn-primary {
+  background: var(--c-dark);
+  color: var(--c-white);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 12px 28px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.c-btn-primary:hover {
+  background: var(--c-gold-dark);
+  transform: translateY(-1px);
+}
+
+.c-btn-outline {
+  background: transparent;
+  color: var(--c-dark);
+  border: 1.5px solid var(--c-dark);
+  border-radius: var(--radius-md);
+  padding: 11px 28px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.c-btn-outline:hover {
+  background: var(--c-dark);
+  color: var(--c-white);
+}
+
+/* Divider with text */
+.c-divider-text {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  color: var(--c-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: var(--space-lg) 0;
+}
+
+.c-divider-text::before,
+.c-divider-text::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--c-border);
+}
+
+/* Empty State */
+.c-empty {
+  text-align: center;
+  padding: var(--space-3xl) var(--space-xl);
+  color: var(--c-text-muted);
+}
+
+.c-empty-icon {
+  font-size: 56px;
+  margin-bottom: var(--space-md);
+  opacity: 0.4;
+}
+
+.c-empty-title {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  color: var(--c-dark);
+  margin-bottom: var(--space-sm);
+}
