@@ -34,7 +34,7 @@ public class OrderController {
     }
 
     // LẤY DANH SÁCH ĐƠN HÀNG (DẠNG GỘP ORDER) - DÙNG CHO TAB ALL
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<OrderSummaryResponseDTO>> getMyOrders(
             @RequestParam(required = false) List<OrderStatus> statuses,
             Pageable pageable) {

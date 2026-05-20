@@ -20,7 +20,7 @@ public class AdminReturnRequestController {
     private final ReturnRequestService returnRequestService;
 
     // LẤY TẤT CẢ YÊU CẦU
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<ReturnRequestResponseDTO>> getAllReturnRequests(
             @RequestParam(required = false) ReturnStatus status,
             Pageable pageable) {

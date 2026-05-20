@@ -31,7 +31,7 @@ public class ProductController {
     /**
      * GET /api/products?keyword=áo&page=0&size=12
      */
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<ProductSummaryResponseDTO>> getProducts(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
