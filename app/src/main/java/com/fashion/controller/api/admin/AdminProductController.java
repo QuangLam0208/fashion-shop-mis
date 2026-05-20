@@ -40,7 +40,7 @@ public class AdminProductController {
     /**
      * POST /api/admin/products
      */
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<ProductDetailResponseDTO> createProduct(
             @Valid @RequestBody CreateProductRequestDTO dto
     ) {
@@ -50,7 +50,7 @@ public class AdminProductController {
     /**
      * PUT /api/admin/products/{id}
      */
-    @PutMapping("/{id}")
+    @PutMapping("/update/{id}")
     public ResponseEntity<ProductDetailResponseDTO> updateProduct(
             @PathVariable Long id,
             @Valid @RequestBody UpdateProductRequestDTO dto
@@ -61,7 +61,7 @@ public class AdminProductController {
     /**
      * DELETE /api/admin/products/{id}
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<MessageResponseDTO> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.ok(MessageResponseDTO.builder()
