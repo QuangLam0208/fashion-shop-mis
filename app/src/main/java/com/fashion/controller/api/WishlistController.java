@@ -18,7 +18,7 @@ public class WishlistController {
     private final WishlistService wishlistService;
 
     // LẤY DANH SÁCH YÊU THÍCH
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<List<WishlistItemResponseDTO>> getWishlist() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(wishlistService.getWishlist(userId));

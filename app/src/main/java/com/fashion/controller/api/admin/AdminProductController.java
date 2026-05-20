@@ -26,7 +26,7 @@ public class AdminProductController {
     /**
      * GET /api/admin/products?keyword=&status=ACTIVE&page=0&size=10
      */
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<ProductSummaryResponseDTO>> getAdminProducts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) ProductStatus status,

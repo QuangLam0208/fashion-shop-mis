@@ -20,7 +20,7 @@ public class ReturnRequestController {
     private final ReturnRequestService returnRequestService;
 
     // LẤY DS YÊU CẦU TRẢ HÀNG
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<List<ReturnRequestResponseDTO>> getReturnRequestsByCustomer() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(
