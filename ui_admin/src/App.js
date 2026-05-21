@@ -11,14 +11,15 @@ import AdminRoutes from './admin/routes';
 // Customer
 import { CustomerAuthProvider } from './customer/context/CustomerAuthContext';
 import { CartProvider } from './customer/context/CartContext';
+import { WishlistProvider } from './customer/context/WishlistContext';
 import CustomerRoutes from './customer/routes';
 
 /**
  * App — root component
  *
  * Phân luồng:
- *   /admin/*  → AdminRoutes  (AuthProvider — admin auth)
- *   /*        → CustomerRoutes (CustomerAuthProvider + CartProvider)
+ * /admin/* → AdminRoutes  (AuthProvider — admin auth)
+ * /* → CustomerRoutes (CustomerAuthProvider + CartProvider + WishlistProvider)
  *
  * Mỗi nhánh dùng AuthContext riêng, không ảnh hưởng nhau.
  */
@@ -43,7 +44,9 @@ const App = () => {
             element={
               <CustomerAuthProvider>
                 <CartProvider>
-                  <CustomerRoutes />
+                  <WishlistProvider>
+                    <CustomerRoutes />
+                  </WishlistProvider>
                 </CartProvider>
               </CustomerAuthProvider>
             }
