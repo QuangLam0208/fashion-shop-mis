@@ -20,11 +20,11 @@ const LandingPage = () => {
       try {
         setLoading(true);
         const [productRes, categories] = await Promise.all([
-          shopProductService.getAll({ limit: 8, sort: 'rating' }),
+          shopProductService.getAll({ page: 0, size: 8 }),
           shopCategoryService.getParents()
         ]);
 
-        setFeatured(productRes?.data || []);
+        setFeatured(productRes?.content || productRes?.data?.content || []);
         setTopCategories(categories || []);
       } catch (error) {
         console.error("Lỗi tải dữ liệu trang chủ:", error);

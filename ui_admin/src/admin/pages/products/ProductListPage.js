@@ -12,10 +12,10 @@ import { adminProductService } from '../../services/productService';
 import { formatCurrency } from '../../../shared/utils/formatters';
 
 const PRODUCT_STATUS_MAP = {
-  ACTIVE:         { label: 'Đang bán',    color: 'green'   },
-  INACTIVE:       { label: 'Ngừng bán',   color: 'default' },
-  OUT_OF_STOCK:   { label: 'Hết hàng',    color: 'red'     },
-  DISCONTINUED:   { label: 'Không còn',   color: 'volcano' },
+  ACTIVE:       { label: 'Đang bán',    color: 'green'   },
+  INACTIVE:     { label: 'Ngừng bán',   color: 'default' },
+  OUT_OF_STOCK: { label: 'Hết hàng',    color: 'red'     },
+  DISCONTINUED: { label: 'Không còn',   color: 'volcano' },
 };
 
 const ProductListPage = () => {
@@ -24,7 +24,7 @@ const ProductListPage = () => {
   const [categories, setCategories] = useState([]);
   const [loading,    setLoading]    = useState(false);
   const [total,      setTotal]      = useState(0);
-  const [params,     setParams]     = useState({});
+  const [params,     setParams]     = useState({ page: 0, size: PAGE_SIZE });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -32,74 +32,151 @@ const ProductListPage = () => {
     setLoading(true);
     try {
       const res = await adminProductService.getAll(p);
-      setData(res.data); setTotal(res.total);
-    } finally { setLoading(false); }
+      
+      // Xử lý đúng cấu trúc Page<> của Spring Boot
+      const productList = res?.content || [];
+      const totalItems = res?.totalElements || 0;
+      
+      setData(productList); 
+      setTotal(totalItems);
+    } catch (error) {
+      message.error('Không thể tải danh sách sản phẩm');
+    } finally { 
+      setLoading(false); 
+    }
   }, [params]);
 
-  useEffect(() => { load({}); }, []);
+  useEffect(() => { load(params); }, []);
   useEffect(() => { adminCategoryService.getAll().then(setCategories); }, []);
 
-  const handleSearch = (vals) => { setParams(vals); load(vals); };
-  const handleReset  = ()     => { setParams({});   load({});   };
+  const handleSearch = (vals) => { 
+    const newParams = { ...vals, page: 0, size: PAGE_SIZE };
+    setParams(newParams); 
+    load(newParams); 
+  };
+  
+  const handleReset  = () => { 
+    const resetParams = { page: 0, size: PAGE_SIZE };
+    setParams(resetParams);   
+    load(resetParams);   
+  };
 
   const handleDelete = async () => {
     setDeleteLoading(true);
     try {
-      await adminProductService.delete(deleteTarget.product_id);
+      // Đọc đúng trường productId từ JSON
+      await adminProductService.delete(deleteTarget.productId);
       message.success('Đã xoá sản phẩm');
-      setDeleteTarget(null); load(params);
-    } catch { message.error('Xoá thất bại'); }
-    finally { setDeleteLoading(false); }
+      setDeleteTarget(null); 
+      load(params);
+    } catch { 
+      message.error('Xoá thất bại — Sản phẩm có thể đang nằm trong đơn hàng'); 
+    } finally { 
+      setDeleteLoading(false); 
+    }
   };
 
+  // CẬP NHẬT COLUMNS ĐỂ MAP CHUẨN VỚI JSON BE TRẢ VỀ
   const columns = [
     {
-      title: 'Ảnh', dataIndex: 'images', width: 70,
-      render: imgs => <Image src={imgs?.[0]?.url || 'https://placehold.co/60x60'} width={48} height={48} style={{ objectFit:'cover', borderRadius:6 }} preview={false} />,
+      title: 'Ảnh', 
+      dataIndex: 'primaryImageUrl', 
+      width: 70,
+      render: url => (
+        <Image 
+          src={url || 'https://placehold.co/60x60'} 
+          width={48} height={48} 
+          style={{ objectFit:'cover', borderRadius:6 }} 
+          preview={false} 
+        />
+      ),
     },
     {
-      title: 'Sản phẩm', dataIndex: 'name',
+      title: 'Sản phẩm', 
+      dataIndex: 'name',
       render: (name, r) => (
         <div>
-          <div style={{ fontWeight:600 }}>{name}</div>
-          <Tag color="blue" style={{ marginTop:2, fontSize:11 }}>{r.category_name}</Tag>
+          <div style={{ fontWeight: 600 }}>{name}</div>
+          <Tag color="blue" style={{ marginTop: 2, fontSize: 11 }}>
+            {r.category || 'Chưa phân loại'}
+          </Tag>
+          {r.subcategory && (
+            <Tag color="cyan" style={{ marginTop: 2, fontSize: 11 }}>
+              {r.subcategory}
+            </Tag>
+          )}
         </div>
       ),
     },
     {
-      title: 'Variants', dataIndex: 'variants',
-      render: vs => {
-        const minPrice = vs?.length ? Math.min(...vs.map(v => v.price)) : 0;
-        const totalStock = vs?.reduce((s, v) => s + v.stock_quantity, 0) || 0;
-        return (
-          <div>
-            <div style={{ fontSize:13 }}>{formatCurrency(minPrice)}</div>
-            <div style={{ fontSize:12, color:'#94a3b8' }}>Tồn kho: {totalStock}</div>
+      title: 'Giá & Kho', 
+      key: 'price_stock',
+      render: (_, r) => (
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500 }}>
+            {formatCurrency(r.price || 0)}
           </div>
-        );
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>
+            Tồn kho: {r.totalStock || 0}
+          </div>
+          {r.variantCount > 1 && (
+            <div style={{ fontSize: 11, color: '#1677ff' }}>
+              ({r.variantCount} phiên bản)
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Trạng thái', 
+      dataIndex: 'status',
+      render: s => { 
+        const c = PRODUCT_STATUS_MAP[s] || { label: s, color: 'default' }; 
+        return <Tag color={c.color}>{c.label}</Tag>; 
       },
     },
     {
-      title: 'Trạng thái', dataIndex: 'status',
-      render: s => { const c = PRODUCT_STATUS_MAP[s] || { label:s, color:'default' }; return <Tag color={c.color}>{c.label}</Tag>; },
+      title: 'Đánh giá', 
+      key: 'rating',
+      render: (_, rec) => (
+        rec.averageRating 
+          ? <span>⭐ {rec.averageRating} ({rec.reviewCount})</span> 
+          : <span style={{ color: '#ccc' }}>Chưa có</span>
+      ),
     },
     {
-      title: 'Đánh giá', dataIndex: 'avg_rating',
-      render: (r, rec) => r ? <span>⭐ {r} ({rec.review_count})</span> : '—',
-    },
-    {
-      title: 'Thao tác', key: 'action', fixed: 'right', width: 100,
+      title: 'Thao tác', 
+      key: 'action', 
+      fixed: 'right', 
+      width: 100,
       render: (_, r) => (
         <Space>
-          <Tooltip title="Chỉnh sửa"><Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/admin/products/${r.product_id}/edit`)} /></Tooltip>
-          <Tooltip title="Xoá"><Button size="small" danger icon={<DeleteOutlined />} onClick={() => setDeleteTarget(r)} /></Tooltip>
+          <Tooltip title="Chỉnh sửa">
+            <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/admin/products/${r.productId}/edit`)} />
+          </Tooltip>
+          <Tooltip title="Xoá">
+            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => setDeleteTarget(r)} />
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
-  const catOptions = categories.filter(c => !c.parent_id).map(c => ({ label: c.name, value: c.category_id }));
+  const catOptions = categories
+    .filter(c => !c.parentId && !c.parent_id)
+    .map(c => ({ label: c.name, value: c.id ?? c.category_id }));
+    
   const statusOpts = Object.entries(PRODUCT_STATUS_MAP).map(([k,v]) => ({ label: v.label, value: k }));
+
+  const handleTableChange = (pagination) => {
+    const newParams = {
+      ...params,
+      page: pagination.current - 1, 
+      size: pagination.pageSize
+    };
+    setParams(newParams);
+    load(newParams);
+  };
 
   return (
     <div>
@@ -109,22 +186,32 @@ const ProductListPage = () => {
           <SearchBar
             fields={[
               { name:'keyword',     type:'input',  placeholder:'Tên sản phẩm...' },
-              { name:'category_id', type:'select', placeholder:'Danh mục', options: catOptions },
+              { name:'categoryId',  type:'select', placeholder:'Danh mục', options: catOptions },
               { name:'status',      type:'select', placeholder:'Trạng thái', options: statusOpts },
             ]}
             onSearch={handleSearch} onReset={handleReset} loading={loading}
           />
-          <ActionBar onAdd={() => navigate('/admin/products/create')} addLabel="Thêm sản phẩm" />
+          <ActionBar showExport={false} onAdd={() => navigate('/admin/products/create')} addLabel="Thêm sản phẩm" />
         </div>
         <Table
-          dataSource={data} columns={columns} rowKey="product_id"
-          loading={loading} pagination={{ pageSize: PAGE_SIZE, total, showTotal: t => `Tổng ${t} sản phẩm` }}
-          scroll={{ x: 700 }} size="middle"
+          dataSource={data} 
+          columns={columns} 
+          rowKey="productId" 
+          loading={loading} 
+          onChange={handleTableChange}
+          pagination={{ 
+            current: (params.page || 0) + 1, 
+            pageSize: params.size || PAGE_SIZE, 
+            total, 
+            showTotal: t => `Tổng ${t} sản phẩm` 
+          }}
+          scroll={{ x: 700 }} 
+          size="middle"
         />
       </div>
       <ConfirmModal
         open={!!deleteTarget} title="Xoá sản phẩm"
-        content={`Bạn có chắc muốn xoá sản phẩm "${deleteTarget?.name}"? Hành động này không thể hoàn tác.`}
+        content={<span>Bạn có chắc muốn xoá sản phẩm <strong>"{deleteTarget?.name}"</strong>? Hành động này không thể hoàn tác.</span>}
         onOk={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading}
       />
     </div>
