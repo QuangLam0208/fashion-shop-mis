@@ -1,4 +1,3 @@
-// src/customer/components/ProductCard.js
 import { HeartFilled, HeartOutlined, ShoppingCartOutlined, StarFilled } from '@ant-design/icons';
 import { Tooltip, message } from 'antd';
 import { useState } from 'react';
@@ -9,63 +8,64 @@ import useCustomerAuth from '../hooks/useCustomerAuth';
 import { wishlistService } from '../services/wishlistService';
 import '../styles/product.css';
 
-/**
- * ProductCard — hiển thị 1 sản phẩm trong lưới
- * Props:
- *   product: { product_id, name, images[], base_price, sale_price, is_sale, rating, review_count, category_name }
- *   showActions: bool (default true) — hiển thị nút thêm giỏ / wishlist
- */
 const ProductCard = ({ product, showActions = true }) => {
   const { isAuthenticated } = useCustomerAuth();
   const navigate  = useNavigate();
-  const { addItem } = useCart();
   const location = useLocation();
 
   const requireLogin = () => {
     message.warning('Vui lòng đăng nhập để thực hiện chức năng này!');
-    // Chuyển hướng tới login, truyền theo state 'from' để đăng nhập xong quay lại đây
     navigate('/login', { state: { from: location } });
   };
   
+  // 🌟 ĐỒNG BỘ CÁC BIẾN VỚI API TRẢ VỀ TỪ SPRING BOOT
+  const productId = product.productId ?? product.product_id;
+  const price = product.price ?? product.base_price ?? 0;
+  const imageUrl = product.primaryImageUrl ?? product.images?.[0] ?? 'https://placehold.co/300x400?text=No+Image';
+  const categoryName = product.category ?? product.category_name;
+  const rating = product.averageRating ?? product.rating;
+  const reviewCount = product.reviewCount ?? product.review_count ?? 0;
+  
   const [wishlisted, setWishlisted] = useState(
-    () => wishlistService.isWishlisted(product.product_id)
+    () => wishlistService.isWishlisted(productId)
   );
 
-  const price    = product.sale_price || product.base_price;
+  // Logic tính chiết khấu (nếu API sau này hỗ trợ truyền giá cũ gốc xuống)
   const discount = product.is_sale && product.base_price > product.sale_price
     ? Math.round(((product.base_price - product.sale_price) / product.base_price) * 100)
     : null;
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
-    // Thêm vào cart với variant đầu tiên (nếu chưa chọn variant, điều hướng vào detail)
     if (!isAuthenticated) return requireLogin();
-    navigate(`/shop/${product.product_id}`);
+    // Chuyển hướng tới trang chi tiết để chọn size/màu
+    navigate(`/shop/${productId}`);
   };
 
   const handleWishlist = async (e) => {
     e.stopPropagation();
     if (!isAuthenticated) return requireLogin();
-    const res = await wishlistService.toggle(product.product_id);
-    setWishlisted(res.wishlisted);
-    message.success(res.wishlisted ? 'Đã thêm vào yêu thích' : 'Đã xoá khỏi yêu thích');
+    try {
+      const res = await wishlistService.toggle(productId);
+      setWishlisted(res.wishlisted);
+      message.success(res.wishlisted ? 'Đã thêm vào yêu thích' : 'Đã xoá khỏi yêu thích');
+    } catch {
+      message.error('Lỗi khi thao tác yêu thích');
+    }
   };
 
   return (
-    <div className="product-card" onClick={() => navigate(`/shop/${product.product_id}`)}>
-      {/* Badge Sale */}
+    <div className="product-card" onClick={() => navigate(`/shop/${productId}`)}>
       {discount && <span className="c-badge-sale">-{discount}%</span>}
 
-      {/* Image */}
       <div className="product-card__image-wrap">
         <img
           className="product-card__image"
-          src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
+          src={imageUrl}
           alt={product.name}
           loading="lazy"
         />
 
-        {/* Hover actions */}
         {showActions && (
           <div className="product-card__actions">
             <button className="product-card__add-btn" onClick={handleAddToCart}>
@@ -92,10 +92,9 @@ const ProductCard = ({ product, showActions = true }) => {
         )}
       </div>
 
-      {/* Info */}
       <div className="product-card__body">
-        {product.category_name && (
-          <div className="product-card__category">{product.category_name}</div>
+        {categoryName && (
+          <div className="product-card__category">{categoryName}</div>
         )}
         <div className="product-card__name" title={product.name}>
           {product.name}
@@ -106,11 +105,11 @@ const ProductCard = ({ product, showActions = true }) => {
           )}
           <span className="c-price">{formatCurrency(price)}</span>
         </div>
-        {product.rating > 0 && (
+        {rating > 0 && (
           <div className="product-card__rating">
             <StarFilled className="product-card__star" />
-            <span>{product.rating}</span>
-            <span>({product.review_count || 0})</span>
+            <span>{rating}</span>
+            <span>({reviewCount})</span>
           </div>
         )}
       </div>

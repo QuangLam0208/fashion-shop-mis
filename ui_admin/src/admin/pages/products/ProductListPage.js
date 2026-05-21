@@ -111,6 +111,8 @@ const ProductListPage = () => {
     {
       title: 'Giá & Kho', 
       key: 'price_stock',
+      width: 200,
+      align: 'center',
       render: (_, r) => (
         <div>
           <div style={{ fontSize: 13, fontWeight: 500 }}>
@@ -130,19 +132,11 @@ const ProductListPage = () => {
     {
       title: 'Trạng thái', 
       dataIndex: 'status',
+      width: 100,
       render: s => { 
         const c = PRODUCT_STATUS_MAP[s] || { label: s, color: 'default' }; 
         return <Tag color={c.color}>{c.label}</Tag>; 
       },
-    },
-    {
-      title: 'Đánh giá', 
-      key: 'rating',
-      render: (_, rec) => (
-        rec.averageRating 
-          ? <span>⭐ {rec.averageRating} ({rec.reviewCount})</span> 
-          : <span style={{ color: '#ccc' }}>Chưa có</span>
-      ),
     },
     {
       title: 'Thao tác', 
