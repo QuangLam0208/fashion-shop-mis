@@ -3,12 +3,12 @@ import { Tooltip, message } from 'antd';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../shared/utils/formatters';
-import useCart from '../hooks/useCart';
 import useCustomerAuth from '../hooks/useCustomerAuth';
 import { wishlistService } from '../services/wishlistService';
 import '../styles/product.css';
 
-const ProductCard = ({ product, showActions = true }) => {
+// 🌟 Bổ sung initialWishlisted và onWishlistChange vào tham số (props)
+const ProductCard = ({ product, showActions = true, initialWishlisted, onWishlistChange }) => {
   const { isAuthenticated } = useCustomerAuth();
   const navigate  = useNavigate();
   const location = useLocation();
@@ -18,7 +18,7 @@ const ProductCard = ({ product, showActions = true }) => {
     navigate('/login', { state: { from: location } });
   };
   
-  // 🌟 ĐỒNG BỘ CÁC BIẾN VỚI API TRẢ VỀ TỪ SPRING BOOT
+  // ĐỒNG BỘ CÁC BIẾN VỚI API TRẢ VỀ TỪ SPRING BOOT
   const productId = product.productId ?? product.product_id;
   const price = product.price ?? product.base_price ?? 0;
   const imageUrl = product.primaryImageUrl ?? product.images?.[0] ?? 'https://placehold.co/300x400?text=No+Image';
@@ -26,8 +26,9 @@ const ProductCard = ({ product, showActions = true }) => {
   const rating = product.averageRating ?? product.rating;
   const reviewCount = product.reviewCount ?? product.review_count ?? 0;
   
+  // 🌟 SỬA STATE: Ưu tiên lấy trạng thái từ Cha truyền xuống (nếu có), nếu không có mới dùng mặc định
   const [wishlisted, setWishlisted] = useState(
-    () => wishlistService.isWishlisted(productId)
+    () => initialWishlisted !== undefined ? initialWishlisted : wishlistService.isWishlisted(productId)
   );
 
   // Logic tính chiết khấu (nếu API sau này hỗ trợ truyền giá cũ gốc xuống)
@@ -47,8 +48,17 @@ const ProductCard = ({ product, showActions = true }) => {
     if (!isAuthenticated) return requireLogin();
     try {
       const res = await wishlistService.toggle(productId);
-      setWishlisted(res.wishlisted);
-      message.success(res.wishlisted ? 'Đã thêm vào yêu thích' : 'Đã xoá khỏi yêu thích');
+      
+      // Xử lý linh hoạt trường hợp Backend không trả về trạng thái mới
+      const newStatus = res?.wishlisted !== undefined ? res.wishlisted : !wishlisted;
+      
+      setWishlisted(newStatus);
+      message.success(newStatus ? 'Đã thêm vào yêu thích' : 'Đã xoá khỏi yêu thích');
+      
+      // 🌟 BÁO CÁO LÊN COMPONENT CHA LÀ TRẠNG THÁI ĐÃ THAY ĐỔI ĐỂ CHA TỰ XÓA KHỎI MÀN HÌNH
+      if (onWishlistChange) {
+        onWishlistChange(productId, newStatus);
+      }
     } catch {
       message.error('Lỗi khi thao tác yêu thích');
     }

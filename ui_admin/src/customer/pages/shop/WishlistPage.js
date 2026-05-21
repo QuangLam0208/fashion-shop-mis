@@ -66,19 +66,26 @@ const WishlistPage = () => {
         {items.length > 0 ? (
           <Row gutter={[24, 24]}>
             {items.map((item) => {
-              // 🌟 ÉP KIỂU DỮ LIỆU TỪ BACKEND CHO KHỚP VỚI PRODUCT CARD
               const productData = {
-                ...item, // Giữ lại toàn bộ dữ liệu gốc
+                ...item,
                 productId: item.productId,
-                name: item.productName || item.name,       // Đổi productName thành name
-                price: item.productPrice || item.price,    // Đổi productPrice thành price
+                name: item.productName || item.name,
+                price: item.productPrice || item.price,
               };
               
               const rowKey = item.wishlistItemId ?? item.productId;
 
               return (
                 <Col xs={12} sm={12} md={8} xl={6} key={rowKey}>
-                  <ProductCard product={productData} />
+                  <ProductCard 
+                    product={productData} 
+                    initialWishlisted={true} 
+                    onWishlistChange={(pId, isNowWishlisted) => {
+                      if (!isNowWishlisted) {
+                         setItems(prevItems => prevItems.filter(i => i.productId !== pId));
+                      }
+                    }}
+                  />
                 </Col>
               );
             })}
