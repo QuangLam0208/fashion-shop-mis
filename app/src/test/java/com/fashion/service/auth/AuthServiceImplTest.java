@@ -1,18 +1,17 @@
 package com.fashion.service.auth;
 
-import com.fashion.dto.request.LoginRequestDTO;
-import com.fashion.dto.request.LogoutRequestDTO;
-import com.fashion.dto.request.RegisterRequestDTO;
-import com.fashion.dto.request.ResendVerificationEmailRequestDTO;
+import com.fashion.dto.request.*;
 import com.fashion.dto.response.LoginResponseDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.RegisterResponseDTO;
 import com.fashion.exception.BadRequestException;
+import com.fashion.model.PasswordResetToken;
 import com.fashion.model.RefreshToken;
 import com.fashion.model.Token;
 import com.fashion.model.User;
 import com.fashion.model.enums.Role;
 import com.fashion.model.enums.UserStatus;
+import com.fashion.repository.PasswordResetTokenRepository;
 import com.fashion.repository.RefreshTokenRepository;
 import com.fashion.repository.TokenRepository;
 import com.fashion.repository.UserRepository;
@@ -29,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,6 +60,9 @@ public class AuthServiceImplTest {
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
 
     private RegisterRequestDTO validRegisterDto;
 
@@ -547,5 +550,164 @@ public class AuthServiceImplTest {
         verify(tokenRepository, never()).save(any(Token.class));
     }
 
+    // =========================================================================
+    // TEST CASES CHO USER STORY 05: FORGOT / RESET PASSWORD
+    // =========================================================================
 
+    // --- TEST FORGOT PASSWORD ---
+
+    @Test
+    void testForgotPassword_Success() {
+        // Arrange
+        ForgotPasswordRequestDTO requestDto = new ForgotPasswordRequestDTO();
+        requestDto.setEmail("test@example.com");
+
+        User user = new User();
+        user.setEmail("test@example.com");
+
+        when(userRepository.findByEmail(requestDto.getEmail())).thenReturn(Optional.of(user));
+
+        // Act
+        MessageResponseDTO response = authService.forgotPassword(requestDto);
+
+        // Assert
+        assertEquals("Liên kết khôi phục mật khẩu đã được gửi đến email của bạn.", response.getMessage());
+
+        // Xác minh token đã được lưu vào DB
+        verify(passwordResetTokenRepository, times(1)).save(any(PasswordResetToken.class));
+        // Xác minh email đã được gửi đi
+        verify(emailService, times(1)).sendResetPasswordEmail(eq(user.getEmail()), anyString());
+    }
+
+    @Test
+    void testForgotPassword_EmailNotFound_ThrowsBadRequestException() {
+        // Arrange
+        ForgotPasswordRequestDTO requestDto = new ForgotPasswordRequestDTO();
+        requestDto.setEmail("notfound@example.com");
+
+        when(userRepository.findByEmail(requestDto.getEmail())).thenReturn(Optional.empty());
+
+        // Act & Assert
+        BadRequestException exception = assertThrows(BadRequestException.class,
+                () -> authService.forgotPassword(requestDto));
+
+        assertEquals("Email không tồn tại!", exception.getMessage());
+        verify(passwordResetTokenRepository, never()).save(any());
+        verify(emailService, never()).sendResetPasswordEmail(anyString(), anyString());
+    }
+
+    // --- TEST RESET PASSWORD ---
+
+    @Test
+    void testResetPassword_Success() {
+        // Arrange
+        String tokenStr = "valid-reset-token";
+        ResetPasswordRequestDTO requestDto = ResetPasswordRequestDTO.builder()
+                .token(tokenStr)
+                .newPassword("newPassword123")
+                .confirmPassword("newPassword123")
+                .build();
+
+        User user = new User();
+        user.setPassword("oldEncodedPassword");
+
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setToken(tokenStr);
+        resetToken.setUsed(false);
+        // Hạn sử dụng: 30 phút trong tương lai
+        resetToken.setExpiryDate(new Date(System.currentTimeMillis() + 30 * 60 * 1000));
+        resetToken.setUser(user);
+
+        when(passwordResetTokenRepository.findByToken(tokenStr)).thenReturn(Optional.of(resetToken));
+        when(passwordEncoder.encode(requestDto.getNewPassword())).thenReturn("newEncodedPassword");
+
+        // Act
+        MessageResponseDTO response = authService.resetPassword(requestDto);
+
+        // Assert
+        assertEquals("Đổi mật khẩu thành công!", response.getMessage());
+        assertEquals("newEncodedPassword", user.getPassword()); // Kiểm tra mật khẩu đã được đổi
+        assertTrue(resetToken.isUsed()); // Kiểm tra token đã bị đánh dấu là đã sử dụng
+
+        verify(userRepository, times(1)).save(user);
+        verify(passwordResetTokenRepository, times(1)).save(resetToken);
+    }
+
+    @Test
+    void testResetPassword_TokenNotFound_ThrowsBadRequestException() {
+        // Arrange
+        ResetPasswordRequestDTO requestDto = ResetPasswordRequestDTO.builder()
+                .token("invalid-token")
+                .build();
+
+        when(passwordResetTokenRepository.findByToken(requestDto.getToken())).thenReturn(Optional.empty());
+
+        // Act & Assert
+        BadRequestException exception = assertThrows(BadRequestException.class,
+                () -> authService.resetPassword(requestDto));
+
+        assertEquals("Token khôi phục không hợp lệ!", exception.getMessage());
+    }
+
+    @Test
+    void testResetPassword_TokenAlreadyUsed_ThrowsBadRequestException() {
+        // Arrange
+        ResetPasswordRequestDTO requestDto = ResetPasswordRequestDTO.builder()
+                .token("used-token")
+                .build();
+
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setUsed(true); // Token đã sử dụng
+
+        when(passwordResetTokenRepository.findByToken(requestDto.getToken())).thenReturn(Optional.of(resetToken));
+
+        // Act & Assert
+        BadRequestException exception = assertThrows(BadRequestException.class,
+                () -> authService.resetPassword(requestDto));
+
+        assertEquals("Token khôi phục đã được sử dụng!", exception.getMessage());
+    }
+
+    @Test
+    void testResetPassword_TokenExpired_ThrowsBadRequestException() {
+        // Arrange
+        ResetPasswordRequestDTO requestDto = ResetPasswordRequestDTO.builder()
+                .token("expired-token")
+                .build();
+
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setUsed(false);
+        // Hạn sử dụng: 30 phút trong quá khứ
+        resetToken.setExpiryDate(new Date(System.currentTimeMillis() - 30 * 60 * 1000));
+
+        when(passwordResetTokenRepository.findByToken(requestDto.getToken())).thenReturn(Optional.of(resetToken));
+
+        // Act & Assert
+        BadRequestException exception = assertThrows(BadRequestException.class,
+                () -> authService.resetPassword(requestDto));
+
+        assertEquals("Token khôi phục đã hết hạn!", exception.getMessage());
+    }
+
+    @Test
+    void testResetPassword_PasswordMismatch_ThrowsBadRequestException() {
+        // Arrange
+        ResetPasswordRequestDTO requestDto = ResetPasswordRequestDTO.builder()
+                .token("valid-token")
+                .newPassword("password123")
+                .confirmPassword("differentPassword") // Không khớp
+                .build();
+
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setUsed(false);
+        resetToken.setExpiryDate(new Date(System.currentTimeMillis() + 30 * 60 * 1000));
+
+        when(passwordResetTokenRepository.findByToken(requestDto.getToken())).thenReturn(Optional.of(resetToken));
+
+        // Act & Assert
+        BadRequestException exception = assertThrows(BadRequestException.class,
+                () -> authService.resetPassword(requestDto));
+
+        assertEquals("Mật khẩu xác nhận không khớp!", exception.getMessage());
+    }
 }
