@@ -330,13 +330,16 @@ public class AuthServiceImplTest {
     }
 
     // =========================================================================
-    // TEST CASES CHO USER STORY 03: LOGIN (ĐĂNG NHẬP)
+    // TEST CASES CHO USER STORY 03: LOGIN
     // =========================================================================
 
     @Test
     void testLogin_Success() {
         // Arrange
-        LoginRequestDTO loginRequest = new LoginRequestDTO("test@example.com", "password123");
+        LoginRequestDTO loginRequest = LoginRequestDTO.builder()
+                .email("test@example.com")
+                .password("password123")
+                .build();
 
         User activeUser = new User();
         activeUser.setId(1L);
@@ -391,8 +394,14 @@ public class AuthServiceImplTest {
     @Test
     void testLogin_MissingInformation_ThrowsBadRequestException() {
         // Arrange: Trường hợp thiếu Email hoặc Password
-        LoginRequestDTO missingEmailDto = new LoginRequestDTO("", "password123");
-        LoginRequestDTO missingPasswordDto = new LoginRequestDTO("test@example.com", null);
+        LoginRequestDTO missingEmailDto = LoginRequestDTO.builder()
+                .email("")
+                .password("password123")
+                .build();
+        LoginRequestDTO missingPasswordDto = LoginRequestDTO.builder()
+                .email("test@example.com")
+                .password(null)
+                .build();
 
         // Act & Assert
         assertThrows(BadRequestException.class, () -> authService.login(missingEmailDto));
@@ -405,7 +414,10 @@ public class AuthServiceImplTest {
     @Test
     void testLogin_UserNotFound_ThrowsBadRequestException() {
         // Arrange
-        LoginRequestDTO loginRequest = new LoginRequestDTO("notfound@example.com", "password123");
+        LoginRequestDTO loginRequest = LoginRequestDTO.builder()
+                .email("notfound@example.com")
+                .password("password123")
+                .build();
         when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -418,7 +430,10 @@ public class AuthServiceImplTest {
     @Test
     void testLogin_WrongPassword_ThrowsBadRequestException() {
         // Arrange
-        LoginRequestDTO loginRequest = new LoginRequestDTO("test@example.com", "wrongpassword");
+        LoginRequestDTO loginRequest = LoginRequestDTO.builder()
+                .email("test@example.com")
+                .password("wrongpassword")
+                .build();
         User user = new User();
         user.setPassword("encodedPassword");
 
@@ -435,7 +450,10 @@ public class AuthServiceImplTest {
     @Test
     void testLogin_UserPending_ThrowsBadRequestException() {
         // Arrange
-        LoginRequestDTO loginRequest = new LoginRequestDTO("test@example.com", "password123");
+        LoginRequestDTO loginRequest = LoginRequestDTO.builder()
+                .email("test@example.com")
+                .password("password123")
+                .build();
         User pendingUser = new User();
         pendingUser.setPassword("encodedPassword");
         pendingUser.setStatus(UserStatus.PENDING); // Trạng thái PENDING
@@ -454,7 +472,10 @@ public class AuthServiceImplTest {
     @Test
     void testLogin_UserBlocked_ThrowsBadRequestException() {
         // Arrange
-        LoginRequestDTO loginRequest = new LoginRequestDTO("test@example.com", "password123");
+        LoginRequestDTO loginRequest = LoginRequestDTO.builder()
+                .email("test@example.com")
+                .password("password123")
+                .build();
         User blockedUser = new User();
         blockedUser.setPassword("encodedPassword");
         blockedUser.setStatus(UserStatus.BLOCKED); // Trạng thái BLOCKED
