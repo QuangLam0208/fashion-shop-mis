@@ -1,6 +1,7 @@
 package com.fashion.service.auth;
 
 import com.fashion.dto.request.LoginRequestDTO;
+import com.fashion.dto.request.LogoutRequestDTO;
 import com.fashion.dto.request.RegisterRequestDTO;
 import com.fashion.dto.request.ResendVerificationEmailRequestDTO;
 import com.fashion.dto.response.LoginResponseDTO;
@@ -490,4 +491,61 @@ public class AuthServiceImplTest {
         assertEquals("Tài khoản đã bị khóa!", exception.getMessage());
         verify(jwtTokenProvider, never()).generateAccessToken(any());
     }
+
+    // =========================================================================
+    // TEST CASES CHO USER STORY 04: LOGOUT
+    // =========================================================================
+
+    @Test
+    void testLogout_Success() {
+        // Arrange
+        String validTokenStr = "valid-jwt-token";
+
+        // Khởi tạo DTO (Sử dụng Builder hoặc Setter tùy theo class của bạn)
+        LogoutRequestDTO requestDto = new LogoutRequestDTO(validTokenStr);
+
+        Token token = new Token();
+        token.setToken(validTokenStr);
+        token.setExpired(false);
+        token.setRevoked(false);
+
+        // Giả lập tìm thấy token trong DB
+        when(tokenRepository.findByToken(validTokenStr)).thenReturn(Optional.of(token));
+
+        // Act
+        MessageResponseDTO response = authService.logout(requestDto);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("Đăng xuất thành công!", response.getMessage());
+
+        // Xác minh token đã bị vô hiệu hóa
+        assertTrue(token.isExpired());
+        assertTrue(token.isRevoked());
+
+        // Xác minh repository đã gọi hàm save để lưu cập nhật vào DB
+        verify(tokenRepository, times(1)).save(token);
+    }
+
+    @Test
+    void testLogout_InvalidToken_ThrowsBadRequestException() {
+        // Arrange
+        String invalidTokenStr = "invalid-jwt-token";
+
+        LogoutRequestDTO requestDto = new LogoutRequestDTO(invalidTokenStr);
+
+        // Giả lập KHÔNG tìm thấy token trong DB
+        when(tokenRepository.findByToken(invalidTokenStr)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        BadRequestException exception = assertThrows(BadRequestException.class,
+                () -> authService.logout(requestDto));
+
+        assertEquals("Token không hợp lệ!", exception.getMessage());
+
+        // Xác minh chắc chắn rằng hệ thống không tiến hành lưu trữ bậy bạ vào DB
+        verify(tokenRepository, never()).save(any(Token.class));
+    }
+
+
 }
