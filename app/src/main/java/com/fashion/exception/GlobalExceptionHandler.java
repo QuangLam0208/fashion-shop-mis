@@ -50,8 +50,15 @@ public class GlobalExceptionHandler {
                         .message(ex.getMessage())
                         .build());
     }
-
-    // 4. XỬ LÝ CÁC LỖI HỆ THỐNG KHÔNG KIỂM SOÁT ĐƯỢC (NullPointer, Đứt DB...) -> Trả về 500
+    // 4. XỬ LÝ LỖI KHÔNG TÌM THẤY TÀI NGUYÊN (Category cha, Product...) -> Trả về 404 Not Found
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<MessageResponseDTO> handleResourceNotFound(ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(MessageResponseDTO.builder()
+                        .message(ex.getMessage())
+                        .build());
+    }
+    // 5. XỬ LÝ CÁC LỖI HỆ THỐNG KHÔNG KIỂM SOÁT ĐƯỢC (NullPointer, Đứt DB...) -> Trả về 500
     @ExceptionHandler(Exception.class)
     public ResponseEntity<MessageResponseDTO> handleGlobalException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

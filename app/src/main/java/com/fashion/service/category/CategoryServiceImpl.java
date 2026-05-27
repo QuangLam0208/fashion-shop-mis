@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
+import com.fashion.exception.ResourceNotFoundException;
 @Service
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
@@ -67,7 +67,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         if (request.getParentId() != null) {
             Category parent = categoryRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục cha"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục cha"));
             category.setParent(parent);
         }
 
