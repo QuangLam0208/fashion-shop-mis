@@ -2,6 +2,7 @@ package com.fashion.service.category;
 
 import com.fashion.dto.request.CategoryRequestDTO;
 import com.fashion.dto.response.CategoryResponseDTO;
+import com.fashion.exception.BadRequestException;
 import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Category;
 import com.fashion.model.Product;
@@ -89,14 +90,14 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.getParentId() != null) {
 
             if (id.equals(request.getParentId())) {
-                throw new RuntimeException("Danh mục không thể tự làm cha của chính nó");
+                throw new BadRequestException("Danh mục không thể tự làm cha của chính nó");
             }
 
             Category parent = categoryRepository.findById(request.getParentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục cha"));
 
             if (isInvalidParent(request.getParentId(), id)) {
-                throw new RuntimeException("Không thể gán danh mục con/cháu làm danh mục cha");
+                throw new BadRequestException("Không thể gán danh mục con/cháu làm danh mục cha");
             }
 
             category.setParent(parent);
