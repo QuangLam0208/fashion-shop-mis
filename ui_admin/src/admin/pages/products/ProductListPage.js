@@ -1,6 +1,6 @@
 // src/admin/pages/products/ProductListPage.js
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
-import { Button, Image, Space, Table, Tag, Tooltip, message, Modal, Descriptions, Row, Col, Spin } from 'antd';
+import { Button, Image, Space, Table, Tag, Tooltip, message } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ActionBar from '../../components/ActionBar';
@@ -11,6 +11,9 @@ import { PAGE_SIZE } from '../../../shared/constants';
 import { adminCategoryService } from '../../services/categoryService';
 import { adminProductService } from '../../services/productService';
 import { formatCurrency } from '../../../shared/utils/formatters';
+
+// IMPORT COMPONENT MODAL CHI TIẾT VỪA TẠO
+import ProductDetailModal from './ProductDetailModal';
 
 const PRODUCT_STATUS_MAP = {
   ACTIVE:       { label: 'Đang bán',    color: 'green'   },
@@ -40,8 +43,6 @@ const ProductListPage = () => {
     setLoading(true);
     try {
       const res = await adminProductService.getAll(p);
-      
-      // Xử lý đúng cấu trúc Page<> của Spring Boot
       const productList = res?.content || [];
       const totalItems = res?.totalElements || 0;
       
@@ -77,12 +78,12 @@ const ProductListPage = () => {
       
       await adminProductService.delete(idToDelete);
       message.success('Đã xoá sản phẩm thành công');
-      setDeleteTarget(null); // Đóng modal
-      load(params);          // Tải lại danh sách
+      setDeleteTarget(null);
+      load(params);
     } catch (error) {
       const errorMsg = error?.response?.data?.message || 'Xoá thất bại — sản phẩm có thể đang nằm trong đơn hàng.';
       message.error(errorMsg);
-      setDeleteTarget(null); // Vẫn đóng modal nếu xoá thất bại
+      setDeleteTarget(null);
     } finally {
       setDeleteLoading(false);
     }
@@ -104,7 +105,6 @@ const ProductListPage = () => {
     }
   };
 
-  // CẬP NHẬT COLUMNS ĐỂ MAP CHUẨN VỚI JSON BE TRẢ VỀ
   const columns = [
     {
       title: 'Ảnh', 
@@ -131,11 +131,8 @@ const ProductListPage = () => {
       dataIndex: 'name',
       render: (name, r) => (
         <div>
-          {/* SỬA TÊN SẢN PHẨM THÀNH LINK CLICK ĐƯỢC */}
-          <div 
-            style={{ fontWeight: 600, color: '#1677ff', cursor: 'pointer', textDecoration: 'underline' }} 
-            onClick={() => handleViewDetails(r)}
-          >
+          {/* ĐÃ BỎ CLICK VÀ GẠCH CHÂN Ở TÊN SẢN PHẨM */}
+          <div style={{ fontWeight: 600 }}>
             {name}
           </div>
           <Tag color="blue" style={{ marginTop: 4, fontSize: 11 }}>
@@ -250,78 +247,13 @@ const ProductListPage = () => {
         />
       </div>
 
-      {/* MODAL XEM CHI TIẾT SẢN PHẨM MỚI BỔ SUNG */}
-      <Modal
-        title="Chi tiết sản phẩm Hệ thống"
-        open={viewModalVisible}
-        onCancel={() => { setViewModalVisible(false); setViewData(null); }}
-        footer={[
-          <Button key="close" onClick={() => { setViewModalVisible(false); setViewData(null); }}>Đóng</Button>
-        ]}
-        width={750}
-        centered
-        destroyOnClose
-      >
-        <Spin spinning={viewLoading}>
-          {viewData && (
-            <div style={{ marginTop: 16 }}>
-              <Row gutter={24}>
-                <Col xs={24} sm={8} style={{ textAlign: 'center', marginBottom: 16 }}>
-                  <Image
-                    src={(viewData.imageUrls && viewData.imageUrls.length > 0) ? viewData.imageUrls[0] : (viewData.image || 'https://placehold.co/200x200?text=No+Image')}
-                    fallback="https://placehold.co/200x200?text=Error"
-                    style={{ width: '100%', maxWidth: 200, borderRadius: 8, objectFit: 'cover', border: '1px solid #f0f0f0' }}
-                  />
-                </Col>
-                <Col xs={24} sm={16}>
-                  <Descriptions column={1} bordered size="small">
-                    <Descriptions.Item label="Tên sản phẩm">
-                      <strong>{viewData.name}</strong>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Giá niêm yết">
-                      <span style={{ color: '#ef4444', fontWeight: 600 }}>{formatCurrency(viewData.price || 0)}</span>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Trạng thái kinh doanh">
-                      <Tag color={PRODUCT_STATUS_MAP[viewData.status]?.color || 'default'}>
-                        {PRODUCT_STATUS_MAP[viewData.status]?.label || viewData.status}
-                      </Tag>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Mô tả sản phẩm">
-                      <div style={{ maxHeight: 100, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                        {viewData.description || <i>Không có mô tả chi tiết cho sản phẩm này.</i>}
-                      </div>
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Col>
-              </Row>
-
-              <h4 style={{ marginTop: 24, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>
-                Danh sách các Biến thể hàng hóa (Variants)
-              </h4>
-              <Table
-                dataSource={viewData.variants || []}
-                rowKey={v => v.variantId ?? v.id}
-                pagination={false}
-                size="small"
-                bordered
-                columns={[
-                  { title: 'Kích cỡ (Size)', dataIndex: 'size', align: 'center', fontWeight: 600 },
-                  { title: 'Màu sắc (Color)', dataIndex: 'color', align: 'center' },
-                  { 
-                    title: 'Số lượng hàng tồn kho', 
-                    dataIndex: 'stockQuantity', 
-                    align: 'center',
-                    render: qty => {
-                      const count = qty ?? 0;
-                      return count === 0 ? <Tag color="red">Hết hàng</Tag> : <strong>{count}</strong>;
-                    }
-                  }
-                ]}
-              />
-            </div>
-          )}
-        </Spin>
-      </Modal>
+      {/* COMPONENT MODAL CHI TIẾT */}
+      <ProductDetailModal
+        visible={viewModalVisible}
+        onClose={() => { setViewModalVisible(false); setViewData(null); }}
+        data={viewData}
+        loading={viewLoading}
+      />
 
       {/* Modal Xác nhận xoá sản phẩm */}
       <ConfirmModal
