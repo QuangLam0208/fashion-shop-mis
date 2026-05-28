@@ -44,4 +44,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
             "OR oi.status = com.fashion.model.enums.OrderStatus.COMPLETED " +
             "GROUP BY oi.productName ORDER BY SUM(oi.quantity) DESC")
     List<Object[]> findTopSellingProducts();
+
+    // Kiểm tra xem một biến thể sản phẩm đã từng nằm trong bất kỳ đơn hàng nào chưa
+    boolean existsByProductVariantId(Long variantId);
 }
