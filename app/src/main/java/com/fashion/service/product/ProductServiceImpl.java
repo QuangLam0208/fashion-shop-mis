@@ -2,6 +2,7 @@ package com.fashion.service.product;
 
 import com.fashion.dto.request.CreateProductRequestDTO;
 import com.fashion.dto.request.UpdateProductRequestDTO;
+import com.fashion.exception.BadRequestException;
 import com.fashion.dto.response.CategoryResponseDTO;
 import com.fashion.dto.response.ProductDetailResponseDTO;
 import com.fashion.dto.response.ProductSummaryResponseDTO;
@@ -10,10 +11,7 @@ import com.fashion.model.Product;
 import com.fashion.model.ProductImage;
 import com.fashion.model.ProductVariant;
 import com.fashion.model.enums.ProductStatus;
-import com.fashion.repository.CategoryRepository;
-import com.fashion.repository.ProductCleanupRepository;
-import com.fashion.repository.ProductRepository;
-import com.fashion.repository.ReviewRepository;
+import com.fashion.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAccessor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -36,6 +34,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final ProductCleanupRepository cleanupRepository;
     private final ReviewRepository reviewRepository;
+    private final OrderItemRepository orderItemRepository;
 
     // Helper: Lấy tên danh mục an toàn (null-safe)
     private String getCategoryName(Product product) {
@@ -216,10 +215,6 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductDetailResponseDTO createProduct(CreateProductRequestDTO dto) {
-        if (dto.getPrice() == null || dto.getPrice() < 0) {
-            throw new RuntimeException("Giá sản phẩm không hợp lệ");
-        }
-
         // Tìm Category từ ID
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Danh mục không tồn tại!"));
@@ -267,10 +262,6 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
 
-        if (dto.getPrice() != null && dto.getPrice() < 0) {
-            throw new RuntimeException("Giá sản phẩm không hợp lệ");
-        }
-
         if (dto.getName() != null)
             product.setName(dto.getName());
 
@@ -287,6 +278,9 @@ public class ProductServiceImpl implements ProductService {
             product.setStatus(dto.getStatus());
 
         if (dto.getImageUrls() != null) {
+            if (dto.getImageUrls().isEmpty()) {
+                throw new BadRequestException("Phải có ít nhất một ảnh sản phẩm");
+            }
             product.getImages().clear();
             for (String url : dto.getImageUrls()) {
                 ProductImage img = ProductImage.builder()
@@ -298,30 +292,45 @@ public class ProductServiceImpl implements ProductService {
         }
 
         if (dto.getVariants() != null) {
+            // Lọc ra danh sách các ID biến thể được gửi lên (để giữ lại hoặc cập nhật)
             List<Long> updatedVariantIds = dto.getVariants().stream()
                     .map(UpdateProductRequestDTO.ProductVariantRequestDTO::getVariantId)
                     .filter(Objects::nonNull)
                     .toList();
 
-            product.getVariants().removeIf(v -> v.getId() != null && !updatedVariantIds.contains(v.getId()));
+            // Tìm các biến thể cũ đang có trong DB nhưng KHÔNG CÓ mặt trong payload (nghĩa là yêu cầu xóa)
+            List<ProductVariant> variantsToRemove = new ArrayList<>();
+            for (ProductVariant existingVariant : product.getVariants()) {
+                if (existingVariant.getId() != null && !updatedVariantIds.contains(existingVariant.getId())) {
+
+                    // KIỂM TRA RÀNG BUỘC: Biến thể này đã có người mua chưa?
+                    boolean isOrdered = orderItemRepository.existsByProductVariantId(existingVariant.getId());
+
+                    if (isOrdered) {
+                        // Nếu đã có giao dịch -> Bắn lỗi ngay lập tức
+                        throw new RuntimeException("Không thể xóa biến thể (Size: " + existingVariant.getSize()
+                                + " - Màu: " + existingVariant.getColor() + ") vì đã phát sinh giao dịch mua hàng!");
+                    }
+
+                    // Nếu an toàn -> Đưa vào danh sách chờ xóa
+                    variantsToRemove.add(existingVariant);
+                }
+            }
+
+            product.getVariants().removeAll(variantsToRemove);
 
             for (UpdateProductRequestDTO.ProductVariantRequestDTO vDto : dto.getVariants()) {
-                if (vDto.getStockQuantity() == null || vDto.getStockQuantity() < 0) {
-                    throw new RuntimeException("Số lượng tồn kho không hợp lệ");
-                }
                 if (vDto.getVariantId() != null) {
-                    product.getVariants().stream()
+                    ProductVariant targetVariant = product.getVariants().stream()
                             .filter(v -> v.getId().equals(vDto.getVariantId()))
                             .findFirst()
-                            .ifPresent(v -> {
-                                if (vDto.getSize() != null)
-                                    v.setSize(vDto.getSize());
-                                if (vDto.getColor() != null)
-                                    v.setColor(vDto.getColor());
-                                v.setStockQuantity(vDto.getStockQuantity());
-                                if (dto.getPrice() != null)
-                                    v.setPrice(dto.getPrice());
-                            });
+                            .orElseThrow(() -> new BadRequestException("Biến thể với ID " + vDto.getVariantId() + " không tồn tại hoặc không thuộc về sản phẩm này!"));
+
+                    // Cập nhật giá trị
+                    if (vDto.getSize() != null) targetVariant.setSize(vDto.getSize());
+                    if (vDto.getColor() != null) targetVariant.setColor(vDto.getColor());
+                    targetVariant.setStockQuantity(vDto.getStockQuantity());
+                    if (dto.getPrice() != null) targetVariant.setPrice(dto.getPrice());
                 } else {
                     ProductVariant variant = ProductVariant.builder()
                             .size(vDto.getSize())

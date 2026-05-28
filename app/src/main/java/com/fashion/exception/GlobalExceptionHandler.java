@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
 import java.util.Map;
-
+import org.springframework.security.access.AccessDeniedException;
 /**
  * Xử lý exception tập trung cho toàn bộ ứng dụng.
  */
@@ -50,13 +50,28 @@ public class GlobalExceptionHandler {
                         .message(ex.getMessage())
                         .build());
     }
-
-    // 4. XỬ LÝ CÁC LỖI HỆ THỐNG KHÔNG KIỂM SOÁT ĐƯỢC (NullPointer, Đứt DB...) -> Trả về 500
+    // 4. XỬ LÝ LỖI KHÔNG TÌM THẤY TÀI NGUYÊN (Category cha, Product...) -> Trả về 404 Not Found
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<MessageResponseDTO> handleResourceNotFound(ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(MessageResponseDTO.builder()
+                        .message(ex.getMessage())
+                        .build());
+    }
+    // 5. XỬ LÝ CÁC LỖI HỆ THỐNG KHÔNG KIỂM SOÁT ĐƯỢC (NullPointer, Đứt DB...) -> Trả về 500
     @ExceptionHandler(Exception.class)
     public ResponseEntity<MessageResponseDTO> handleGlobalException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(MessageResponseDTO.builder()
                         .message("Lỗi hệ thống Server: " + ex.getMessage())
+                        .build());
+    }
+    //6. XỬ LÍ khi user có quyền CUSTOMER cố gắng truy cập /api/admin/
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<MessageResponseDTO> handleAccessDeniedException(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(MessageResponseDTO.builder()
+                        .message("Bạn không có quyền truy cập vào tài nguyên này (Yêu cầu quyền ADMIN).")
                         .build());
     }
 }

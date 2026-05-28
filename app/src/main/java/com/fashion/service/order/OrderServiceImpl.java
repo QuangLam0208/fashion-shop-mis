@@ -392,7 +392,7 @@ public class OrderServiceImpl implements OrderService {
                 .filter(img -> img.getColor() != null && img.getColor().equalsIgnoreCase(variant.getColor()))
                 .map(ProductImage::getUrl)
                 .findFirst()
-                .orElse(variant.getProduct().getImages().getFirst().getUrl());
+                .orElse(variant.getProduct().getImages().get(0).getUrl());
 
         if (targetUrl == null)
             return null;
