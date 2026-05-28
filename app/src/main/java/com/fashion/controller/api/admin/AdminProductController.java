@@ -38,7 +38,7 @@ public class AdminProductController {
     }
 
     /**
-     * POST /api/admin/products
+     * POST /api/admin/products/create
      */
     @PostMapping("/create")
     public ResponseEntity<ProductDetailResponseDTO> createProduct(
@@ -48,7 +48,7 @@ public class AdminProductController {
     }
 
     /**
-     * PUT /api/admin/products/{id}
+     * PUT /api/admin/products/update/{id}
      */
     @PutMapping("/update/{id}")
     public ResponseEntity<ProductDetailResponseDTO> updateProduct(
