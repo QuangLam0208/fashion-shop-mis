@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
 import java.util.Map;
-
+import org.springframework.security.access.AccessDeniedException;
 /**
  * Xử lý exception tập trung cho toàn bộ ứng dụng.
  */
@@ -64,6 +64,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(MessageResponseDTO.builder()
                         .message("Lỗi hệ thống Server: " + ex.getMessage())
+                        .build());
+    }
+    //6. XỬ LÍ khi user có quyền CUSTOMER cố gắng truy cập /api/admin/
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<MessageResponseDTO> handleAccessDeniedException(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(MessageResponseDTO.builder()
+                        .message("Bạn không có quyền truy cập vào tài nguyên này (Yêu cầu quyền ADMIN).")
                         .build());
     }
 }
