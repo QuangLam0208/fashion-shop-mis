@@ -39,11 +39,11 @@ public class WishlistServiceImpl implements WishlistService {
                             .productPrice(
                                     product.getVariants().isEmpty()
                                             ? 0.0
-                                            : product.getVariants().getFirst().getPrice()
+                                            : product.getVariants().get(0).getPrice()
                             )
                             .categoryName(product.getCategory() != null ? product.getCategory().getName() : "Uncategorized")
                             .inStock(product.getStatus() == ProductStatus.ACTIVE)
-                            .primaryImageUrl(!product.getImages().isEmpty() ? product.getImages().getFirst().getUrl() : null)
+                            .primaryImageUrl(!product.getImages().isEmpty() ? product.getImages().get(0).getUrl() : null)
                             .build();
                 })
                 .toList();

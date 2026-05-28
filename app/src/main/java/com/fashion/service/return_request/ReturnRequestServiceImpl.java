@@ -66,7 +66,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Transactional
     public ReturnRequest submitReturnRequest(SubmitReturnRequestDTO dto) {
         List<OrderItem> returnItems = validateReturnEligibility(dto.getOrderId(), dto.getItemIds());
-        Order order = returnItems.getFirst().getOrder();
+        Order order = returnItems.get(0).getOrder();
 
         ReturnRequest returnRequest = new ReturnRequest();
         returnRequest.setOrder(order);
@@ -186,7 +186,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .filter(img -> img.getColor() != null && img.getColor().equalsIgnoreCase(variant.getColor()))
                 .map(ProductImage::getUrl)
                 .findFirst()
-                .orElse(variant.getProduct().getImages().getFirst().getUrl());
+                .orElse(variant.getProduct().getImages().get(0).getUrl());
 
         if (targetUrl == null) return null;
 
