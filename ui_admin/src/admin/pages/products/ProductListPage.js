@@ -1,5 +1,6 @@
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { Button, Image, Space, Table, Tag, Tooltip, message } from 'antd';
+// src/admin/pages/products/ProductListPage.js
+import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
+import { Button, Image, Space, Table, Tag, Tooltip, message, Modal, Descriptions, Row, Col, Spin } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ActionBar from '../../components/ActionBar';
@@ -25,8 +26,15 @@ const ProductListPage = () => {
   const [loading,    setLoading]    = useState(false);
   const [total,      setTotal]      = useState(0);
   const [params,     setParams]     = useState({ page: 0, size: PAGE_SIZE });
+  
+  // State xoá sản phẩm
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // State phục vụ việc xem chi tiết sản phẩm
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [viewData, setViewData] = useState(null);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const load = useCallback(async (p = params) => {
     setLoading(true);
@@ -62,17 +70,37 @@ const ProductListPage = () => {
   };
 
   const handleDelete = async () => {
+    if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      // Đọc đúng trường productId từ JSON
-      await adminProductService.delete(deleteTarget.productId);
-      message.success('Đã xoá sản phẩm');
-      setDeleteTarget(null); 
-      load(params);
-    } catch { 
-      message.error('Xoá thất bại — Sản phẩm có thể đang nằm trong đơn hàng'); 
-    } finally { 
-      setDeleteLoading(false); 
+      const idToDelete = deleteTarget.productId ?? deleteTarget.product_id ?? deleteTarget.id;
+      
+      await adminProductService.delete(idToDelete);
+      message.success('Đã xoá sản phẩm thành công');
+      setDeleteTarget(null); // Đóng modal
+      load(params);          // Tải lại danh sách
+    } catch (error) {
+      const errorMsg = error?.response?.data?.message || 'Xoá thất bại — sản phẩm có thể đang nằm trong đơn hàng.';
+      message.error(errorMsg);
+      setDeleteTarget(null); // Vẫn đóng modal nếu xoá thất bại
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Hàm gọi API lấy chi tiết sản phẩm khi admin click xem
+  const handleViewDetails = async (record) => {
+    const id = record.productId ?? record.product_id ?? record.id;
+    setViewLoading(true);
+    setViewModalVisible(true);
+    try {
+      const res = await adminProductService.getById(id);
+      setViewData(res);
+    } catch (error) {
+      message.error('Không thể tải chi tiết sản phẩm này.');
+      setViewModalVisible(false);
+    } finally {
+      setViewLoading(false);
     }
   };
 
@@ -80,28 +108,41 @@ const ProductListPage = () => {
   const columns = [
     {
       title: 'Ảnh', 
-      dataIndex: 'primaryImageUrl', 
+      key: 'image',
       width: 70,
-      render: url => (
-        <Image 
-          src={url || 'https://placehold.co/60x60'} 
-          width={48} height={48} 
-          style={{ objectFit:'cover', borderRadius:6 }} 
-          preview={false} 
-        />
-      ),
+      render: (_, r) => {
+        const imgUrl = (r.imageUrls && r.imageUrls.length > 0) 
+          ? r.imageUrls[0] 
+          : (r.image || r.primaryImageUrl);
+
+        return (
+          <Image 
+            src={imgUrl || 'https://placehold.co/60x60?text=No+Image'} 
+            fallback="https://placehold.co/60x60?text=Error"
+            width={48} height={48} 
+            style={{ objectFit: 'cover', borderRadius: 6, border: '1px solid #f0f0f0' }} 
+            preview={false} 
+          />
+        );
+      },
     },
     {
       title: 'Sản phẩm', 
       dataIndex: 'name',
       render: (name, r) => (
         <div>
-          <div style={{ fontWeight: 600 }}>{name}</div>
-          <Tag color="blue" style={{ marginTop: 2, fontSize: 11 }}>
+          {/* SỬA TÊN SẢN PHẨM THÀNH LINK CLICK ĐƯỢC */}
+          <div 
+            style={{ fontWeight: 600, color: '#1677ff', cursor: 'pointer', textDecoration: 'underline' }} 
+            onClick={() => handleViewDetails(r)}
+          >
+            {name}
+          </div>
+          <Tag color="blue" style={{ marginTop: 4, fontSize: 11 }}>
             {r.category || 'Chưa phân loại'}
           </Tag>
           {r.subcategory && (
-            <Tag color="cyan" style={{ marginTop: 2, fontSize: 11 }}>
+            <Tag color="cyan" style={{ marginTop: 4, fontSize: 11 }}>
               {r.subcategory}
             </Tag>
           )}
@@ -142,11 +183,14 @@ const ProductListPage = () => {
       title: 'Thao tác', 
       key: 'action', 
       fixed: 'right', 
-      width: 100,
+      width: 120,
       render: (_, r) => (
         <Space>
+          <Tooltip title="Xem chi tiết">
+            <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetails(r)} />
+          </Tooltip>
           <Tooltip title="Chỉnh sửa">
-            <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/admin/products/${r.productId}/edit`)} />
+            <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/admin/products/${r.productId ?? r.id}/edit`)} />
           </Tooltip>
           <Tooltip title="Xoá">
             <Button size="small" danger icon={<DeleteOutlined />} onClick={() => setDeleteTarget(r)} />
@@ -175,6 +219,7 @@ const ProductListPage = () => {
   return (
     <div>
       <PageHeader title="Quản lý Sản phẩm" breadcrumbs={[{ label: 'Sản phẩm' }]} />
+      
       <div style={{ background:'#fff', borderRadius:12, padding:'16px 20px', boxShadow:'0 1px 8px rgba(0,0,0,0.08)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, flexWrap:'wrap', gap:12 }}>
           <SearchBar
@@ -187,6 +232,7 @@ const ProductListPage = () => {
           />
           <ActionBar showExport={false} onAdd={() => navigate('/admin/products/create')} addLabel="Thêm sản phẩm" />
         </div>
+        
         <Table
           dataSource={data} 
           columns={columns} 
@@ -203,12 +249,97 @@ const ProductListPage = () => {
           size="middle"
         />
       </div>
+
+      {/* MODAL XEM CHI TIẾT SẢN PHẨM MỚI BỔ SUNG */}
+      <Modal
+        title="Chi tiết sản phẩm Hệ thống"
+        open={viewModalVisible}
+        onCancel={() => { setViewModalVisible(false); setViewData(null); }}
+        footer={[
+          <Button key="close" onClick={() => { setViewModalVisible(false); setViewData(null); }}>Đóng</Button>
+        ]}
+        width={750}
+        centered
+        destroyOnClose
+      >
+        <Spin spinning={viewLoading}>
+          {viewData && (
+            <div style={{ marginTop: 16 }}>
+              <Row gutter={24}>
+                <Col xs={24} sm={8} style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <Image
+                    src={(viewData.imageUrls && viewData.imageUrls.length > 0) ? viewData.imageUrls[0] : (viewData.image || 'https://placehold.co/200x200?text=No+Image')}
+                    fallback="https://placehold.co/200x200?text=Error"
+                    style={{ width: '100%', maxWidth: 200, borderRadius: 8, objectFit: 'cover', border: '1px solid #f0f0f0' }}
+                  />
+                </Col>
+                <Col xs={24} sm={16}>
+                  <Descriptions column={1} bordered size="small">
+                    <Descriptions.Item label="Tên sản phẩm">
+                      <strong>{viewData.name}</strong>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Giá niêm yết">
+                      <span style={{ color: '#ef4444', fontWeight: 600 }}>{formatCurrency(viewData.price || 0)}</span>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Trạng thái kinh doanh">
+                      <Tag color={PRODUCT_STATUS_MAP[viewData.status]?.color || 'default'}>
+                        {PRODUCT_STATUS_MAP[viewData.status]?.label || viewData.status}
+                      </Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Mô tả sản phẩm">
+                      <div style={{ maxHeight: 100, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                        {viewData.description || <i>Không có mô tả chi tiết cho sản phẩm này.</i>}
+                      </div>
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Col>
+              </Row>
+
+              <h4 style={{ marginTop: 24, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>
+                Danh sách các Biến thể hàng hóa (Variants)
+              </h4>
+              <Table
+                dataSource={viewData.variants || []}
+                rowKey={v => v.variantId ?? v.id}
+                pagination={false}
+                size="small"
+                bordered
+                columns={[
+                  { title: 'Kích cỡ (Size)', dataIndex: 'size', align: 'center', fontWeight: 600 },
+                  { title: 'Màu sắc (Color)', dataIndex: 'color', align: 'center' },
+                  { 
+                    title: 'Số lượng hàng tồn kho', 
+                    dataIndex: 'stockQuantity', 
+                    align: 'center',
+                    render: qty => {
+                      const count = qty ?? 0;
+                      return count === 0 ? <Tag color="red">Hết hàng</Tag> : <strong>{count}</strong>;
+                    }
+                  }
+                ]}
+              />
+            </div>
+          )}
+        </Spin>
+      </Modal>
+
+      {/* Modal Xác nhận xoá sản phẩm */}
       <ConfirmModal
-        open={!!deleteTarget} title="Xoá sản phẩm"
-        content={<span>Bạn có chắc muốn xoá sản phẩm <strong>"{deleteTarget?.name}"</strong>? Hành động này không thể hoàn tác.</span>}
-        onOk={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading}
+        isOpen={!!deleteTarget}
+        title="Xoá sản phẩm"
+        content={
+          <span>
+            Bạn có chắc muốn xoá sản phẩm <strong>"{deleteTarget?.name}"</strong>? 
+            Hành động này không thể phục hồi.
+          </span>
+        }
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteLoading}
+        danger={true}
       />
     </div>
   );
 };
+
 export default ProductListPage;
