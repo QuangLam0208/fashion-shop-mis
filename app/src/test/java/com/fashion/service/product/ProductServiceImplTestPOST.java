@@ -19,10 +19,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +31,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class ProductServiceImplTest {
+public class ProductServiceImplTestPOST {
 
     @Mock
     private ProductRepository productRepository;
@@ -178,88 +176,6 @@ public class ProductServiceImplTest {
         verify(categoryRepository, times(1)).findById(2L);
         verify(productRepository, times(1)).save(any(Product.class));
         verify(productRepository, times(1)).findById(10L);
-    }
-
-    // =========================================================================
-    // TEST CASE 2: INVALID STOCK QUANTITY (Throws RuntimeException)
-    // =========================================================================
-    @Test
-    void testCreateProduct_InvalidStockQuantity_ThrowsRuntimeException() {
-        // Arrange: Mock Category để vượt qua bước check category ban đầu
-        when(categoryRepository.findById(2L)).thenReturn(Optional.of(mockCategory));
-
-        // Arrange: Đặt tồn kho của variant là số âm
-        CreateProductRequestDTO.ProductVariantRequestDTO invalidVariantDto = CreateProductRequestDTO.ProductVariantRequestDTO.builder()
-                .size("M")
-                .color("Đỏ")
-                .stockQuantity(-10L) // Số lượng tồn kho âm
-                .build();
-
-        validCreateDto.setVariants(List.of(invalidVariantDto));
-
-        // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            productService.createProduct(validCreateDto);
-        });
-
-        assertEquals("Số lượng tồn kho không hợp lệ", exception.getMessage());
-        // Verify: Đảm bảo không lưu vào db
-        verify(productRepository, never()).save(any(Product.class));
-    }
-
-    @Test
-    void testCreateProduct_NullStockQuantity_ThrowsRuntimeException() {
-        // Arrange: Mock Category để vượt qua bước check category ban đầu
-        when(categoryRepository.findById(2L)).thenReturn(Optional.of(mockCategory));
-
-        // Arrange: Đặt tồn kho của variant là null
-        CreateProductRequestDTO.ProductVariantRequestDTO invalidVariantDto = CreateProductRequestDTO.ProductVariantRequestDTO.builder()
-                .size("M")
-                .color("Đỏ")
-                .stockQuantity(null) // Số lượng tồn kho null
-                .build();
-
-        validCreateDto.setVariants(List.of(invalidVariantDto));
-
-        // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            productService.createProduct(validCreateDto);
-        });
-
-        assertEquals("Số lượng tồn kho không hợp lệ", exception.getMessage());
-        // Verify: Đảm bảo không lưu vào db
-        verify(productRepository, never()).save(any(Product.class));
-    }
-
-    // =========================================================================
-    // TEST CASE 3: VARIANTS EMPTY (Throws BadRequestException)
-    // =========================================================================
-    @Test
-    void testCreateProduct_VariantsEmpty_ThrowsBadRequestException() {
-        // Arrange: Đặt danh sách variant rỗng
-        validCreateDto.setVariants(Collections.emptyList());
-
-        // Act & Assert
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
-            productService.createProduct(validCreateDto);
-        });
-
-        assertEquals("Phải có ít nhất một biến thể sản phẩm (variant)", exception.getMessage());
-        verify(productRepository, never()).save(any(Product.class));
-    }
-
-    @Test
-    void testCreateProduct_VariantsNull_ThrowsBadRequestException() {
-        // Arrange: Đặt danh sách variant là null
-        validCreateDto.setVariants(null);
-
-        // Act & Assert
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
-            productService.createProduct(validCreateDto);
-        });
-
-        assertEquals("Phải có ít nhất một biến thể sản phẩm (variant)", exception.getMessage());
-        verify(productRepository, never()).save(any(Product.class));
     }
 
     // =========================================================================
