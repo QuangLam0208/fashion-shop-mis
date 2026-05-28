@@ -25,7 +25,6 @@ const ProductFormPage = () => {
   const [saveLoading, setSaveLoading] = useState(false);
   const [categories, setCategories] = useState([]);
 
-  // Tải danh sách danh mục
   useEffect(() => {
     adminCategoryService.getAll().then(res => {
       const catList = Array.isArray(res) ? res : (res?.data || res?.content || []);
@@ -33,7 +32,6 @@ const ProductFormPage = () => {
     }).catch(() => message.error('Không thể tải danh sách danh mục'));
   }, []);
 
-  // Tải dữ liệu khi ở chế độ Edit hoặc thiết lập mặc định khi Create
   useEffect(() => {
     if (isEditMode) {
       const fetchProductDetails = async () => {
@@ -41,7 +39,6 @@ const ProductFormPage = () => {
         try {
           const res = await adminProductService.getById(id);
           
-          // Map lại mảng variants từ API để đưa vào Form
           const formVariants = (res.variants && res.variants.length > 0) 
             ? res.variants.map(v => ({
                 variantId: v.variantId ?? v.id,
@@ -49,17 +46,26 @@ const ProductFormPage = () => {
                 color: v.color,
                 stockQuantity: v.stockQuantity ?? v.stock_quantity
               }))
-            : [{ size: '', color: '', stockQuantity: 0 }]; // Fallback nếu lỗi data cũ
+            : [{ size: '', color: '', stockQuantity: 0 }];
 
-          // Tìm ảnh đại diện
-          const imageUrl = (res.imageUrls && res.imageUrls.length > 0) 
-            ? res.imageUrls[0] 
-            : res.image;
+          let imageUrl = '';
+          if (res.mainImage && !res.mainImage.includes('placeholder.png')) {
+            imageUrl = res.mainImage;
+          } else if (res.images && res.images.length > 0) {
+            imageUrl = res.images[0].url || res.images[0];
+          } else if (res.imageUrls && res.imageUrls.length > 0) {
+            imageUrl = res.imageUrls[0];
+          } else if (res.primaryImageUrl && !res.primaryImageUrl.includes('placeholder.png')) {
+            imageUrl = res.primaryImageUrl;
+          }
+
+          const rawCatId = res.categoryId ?? res.category_id;
+          const catIdValue = rawCatId ? Number(rawCatId) : undefined;
 
           form.setFieldsValue({
             name: res.name,
             price: res.price,
-            categoryId: res.categoryId ?? res.category_id, 
+            categoryId: catIdValue, 
             status: res.status || 'ACTIVE',
             primaryImageUrl: imageUrl,
             description: res.description,
@@ -74,7 +80,6 @@ const ProductFormPage = () => {
       };
       fetchProductDetails();
     } else {
-      // AC-FE-12-02: Khởi tạo mặc định ít nhất 1 dòng variant khi tạo mới
       form.setFieldsValue({ 
         status: 'ACTIVE', 
         price: 0,
@@ -85,7 +90,6 @@ const ProductFormPage = () => {
 
   // Xử lý Lưu dữ liệu
   const handleSave = async (values) => {
-    // AC-FE-12-04: Validate bắt buộc có ít nhất 1 variant từ code cứng đề phòng
     if (!values.variants || values.variants.length === 0) {
       message.error('Phải có ít nhất một biến thể sản phẩm (variant).');
       return;
@@ -93,24 +97,21 @@ const ProductFormPage = () => {
 
     setSaveLoading(true);
     try {
-      // Tạo Payload chuẩn theo yêu cầu API
       const payload = {
         name: values.name,
         description: values.description || "",
         price: values.price,
         categoryId: values.categoryId,
         status: values.status || "ACTIVE",
-        // AC-FE-12-06: Optional Image flow
         imageUrls: values.primaryImageUrl ? [values.primaryImageUrl] : [], 
         variants: values.variants.map(v => ({
-          ...(v.variantId ? { variantId: v.variantId } : {}), // Giữ lại ID nếu đang edit
+          ...(v.variantId ? { variantId: v.variantId } : {}), 
           size: v.size,
           color: v.color,
           stockQuantity: v.stockQuantity
         }))
       };
 
-      // GỌI API AC-FE-12-05
       if (isEditMode) {
         await adminProductService.update(id, payload);
         message.success('Cập nhật sản phẩm thành công!');
@@ -122,10 +123,8 @@ const ProductFormPage = () => {
       navigate('/admin/products'); 
       
     } catch (error) {
-      // AC-FE-12-07: Hiển thị lỗi rõ ràng khi Backend trả về 400
       const errorData = error?.response?.data;
       if (errorData?.errors) {
-        // Lấy thông báo lỗi đầu tiên từ object errors
         const firstError = Object.values(errorData.errors)[0];
         message.error(`Lỗi: ${firstError}`);
       } else {
@@ -136,10 +135,20 @@ const ProductFormPage = () => {
     }
   };
 
-  const categoryOptions = categories.map(c => ({
-    label: c.name,
-    value: c.id ?? c.category_id
-  }));
+  const getCategoryOptions = () => {
+    const options = [];
+    categories.forEach(c => {
+      options.push({ label: c.name, value: Number(c.id ?? c.category_id) });
+      
+      const children = c.children || c.subCategories || [];
+      children.forEach(sub => {
+        options.push({ label: `--- ${sub.name}`, value: Number(sub.id ?? sub.category_id) });
+      });
+    });
+    return options;
+  };
+
+  const categoryOptions = getCategoryOptions();
 
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '50px 0' }}><Spin size="large" /></div>;
@@ -157,10 +166,8 @@ const ProductFormPage = () => {
 
       <Form form={form} layout="vertical" onFinish={handleSave}>
         <Row gutter={24}>
-          {/* CỘT TRÁI: Thông tin cơ bản & Variants */}
           <Col xs={24} lg={16}>
             <Card title="Thông tin cơ bản" bordered={false} style={{ marginBottom: 24, borderRadius: 12, boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
-              {/* AC-FE-12-01: Basic form fields */}
               <Form.Item name="name" label="Tên sản phẩm" rules={[{ required: true, message: 'Vui lòng nhập tên' }]}>
                 <Input placeholder="Ví dụ: Áo thun Polo thể thao" size="large" />
               </Form.Item>
@@ -171,7 +178,6 @@ const ProductFormPage = () => {
 
               <Row gutter={16}>
                 <Col span={12}>
-                  {/* AC-FE-12-03: Price >= 0 */}
                   <Form.Item name="price" label="Giá bán (VNĐ)" rules={[
                     { required: true, message: 'Vui lòng nhập giá' },
                     { type: 'number', min: 0, message: 'Giá không được âm' }
@@ -187,7 +193,6 @@ const ProductFormPage = () => {
               </Row>
             </Card>
 
-            {/* PHẦN ĐỘNG: QUẢN LÝ BIẾN THỂ (VARIANTS) */}
             <Card title="Phân loại biến thể (Size & Màu sắc)" bordered={false} style={{ marginBottom: 24, borderRadius: 12, boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
               <Form.List 
                 name="variants"
@@ -205,7 +210,6 @@ const ProductFormPage = () => {
                   <>
                     {fields.map(({ key, name, ...restField }) => (
                       <Row key={key} gutter={16} align="middle" style={{ marginBottom: 8 }}>
-                        {/* Ẩn trường variantId dùng để giữ ID cũ khi gửi update */}
                         <Form.Item {...restField} name={[name, 'variantId']} style={{ display: 'none' }}>
                           <Input />
                         </Form.Item>
@@ -231,7 +235,6 @@ const ProductFormPage = () => {
                           </Form.Item>
                         </Col>
                         <Col span={7}>
-                          {/* AC-FE-12-03: Stock >= 0 */}
                           <Form.Item
                             {...restField}
                             name={[name, 'stockQuantity']}
@@ -261,7 +264,6 @@ const ProductFormPage = () => {
             </Card>
           </Col>
 
-          {/* CỘT PHẢI: Phân loại & Trạng thái */}
           <Col xs={24} lg={8}>
             <Card title="Phân loại" bordered={false} style={{ marginBottom: 24, borderRadius: 12, boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
               <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true, message: 'Vui lòng chọn danh mục' }]}>
