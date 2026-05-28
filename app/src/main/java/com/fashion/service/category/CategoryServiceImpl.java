@@ -43,6 +43,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CategoryResponseDTO> getCategoryTree() {
         return categoryRepository.findByParentIsNull()
                 .stream()
