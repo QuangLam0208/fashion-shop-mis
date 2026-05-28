@@ -266,10 +266,6 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
 
-        if (dto.getPrice() != null && dto.getPrice() < 0) {
-            throw new RuntimeException("Giá sản phẩm không hợp lệ");
-        }
-
         if (dto.getName() != null)
             product.setName(dto.getName());
 
@@ -325,9 +321,6 @@ public class ProductServiceImpl implements ProductService {
             product.getVariants().removeAll(variantsToRemove);
 
             for (UpdateProductRequestDTO.ProductVariantRequestDTO vDto : dto.getVariants()) {
-                if (vDto.getStockQuantity() == null || vDto.getStockQuantity() < 0) {
-                    throw new RuntimeException("Số lượng tồn kho không hợp lệ");
-                }
                 if (vDto.getVariantId() != null) {
                     product.getVariants().stream()
                             .filter(v -> v.getId().equals(vDto.getVariantId()))
