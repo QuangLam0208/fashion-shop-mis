@@ -283,6 +283,9 @@ public class ProductServiceImpl implements ProductService {
             product.setStatus(dto.getStatus());
 
         if (dto.getImageUrls() != null) {
+            if (dto.getImageUrls().isEmpty()) {
+                throw new BadRequestException("Phải có ít nhất một ảnh sản phẩm");
+            }
             product.getImages().clear();
             for (String url : dto.getImageUrls()) {
                 ProductImage img = ProductImage.builder()
