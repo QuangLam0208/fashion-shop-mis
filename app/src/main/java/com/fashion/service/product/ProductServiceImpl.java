@@ -2,6 +2,7 @@ package com.fashion.service.product;
 
 import com.fashion.dto.request.CreateProductRequestDTO;
 import com.fashion.dto.request.UpdateProductRequestDTO;
+import com.fashion.exception.BadRequestException;
 import com.fashion.dto.response.CategoryResponseDTO;
 import com.fashion.dto.response.ProductDetailResponseDTO;
 import com.fashion.dto.response.ProductSummaryResponseDTO;
@@ -216,6 +217,10 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductDetailResponseDTO createProduct(CreateProductRequestDTO dto) {
+        if (dto.getVariants() == null || dto.getVariants().isEmpty()) {
+            throw new BadRequestException("Phải có ít nhất một biến thể sản phẩm (variant)");
+        }
+
         if (dto.getPrice() == null || dto.getPrice() < 0) {
             throw new RuntimeException("Giá sản phẩm không hợp lệ");
         }
