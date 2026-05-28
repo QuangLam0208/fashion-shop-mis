@@ -5,6 +5,7 @@ import com.fashion.dto.request.UpdateProductRequestDTO;
 import com.fashion.dto.response.CategoryResponseDTO;
 import com.fashion.dto.response.ProductDetailResponseDTO;
 import com.fashion.dto.response.ProductSummaryResponseDTO;
+import com.fashion.exception.BadRequestException;
 import com.fashion.model.Category;
 import com.fashion.model.Product;
 import com.fashion.model.ProductImage;
@@ -266,10 +267,6 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
 
-        if (dto.getPrice() != null && dto.getPrice() < 0) {
-            throw new RuntimeException("Giá sản phẩm không hợp lệ");
-        }
-
         if (dto.getName() != null)
             product.setName(dto.getName());
 
@@ -286,6 +283,9 @@ public class ProductServiceImpl implements ProductService {
             product.setStatus(dto.getStatus());
 
         if (dto.getImageUrls() != null) {
+            if (dto.getImageUrls().isEmpty()) {
+                throw new BadRequestException("Phải có ít nhất một ảnh sản phẩm");
+            }
             product.getImages().clear();
             for (String url : dto.getImageUrls()) {
                 ProductImage img = ProductImage.builder()
@@ -325,22 +325,17 @@ public class ProductServiceImpl implements ProductService {
             product.getVariants().removeAll(variantsToRemove);
 
             for (UpdateProductRequestDTO.ProductVariantRequestDTO vDto : dto.getVariants()) {
-                if (vDto.getStockQuantity() == null || vDto.getStockQuantity() < 0) {
-                    throw new RuntimeException("Số lượng tồn kho không hợp lệ");
-                }
                 if (vDto.getVariantId() != null) {
-                    product.getVariants().stream()
+                    ProductVariant targetVariant = product.getVariants().stream()
                             .filter(v -> v.getId().equals(vDto.getVariantId()))
                             .findFirst()
-                            .ifPresent(v -> {
-                                if (vDto.getSize() != null)
-                                    v.setSize(vDto.getSize());
-                                if (vDto.getColor() != null)
-                                    v.setColor(vDto.getColor());
-                                v.setStockQuantity(vDto.getStockQuantity());
-                                if (dto.getPrice() != null)
-                                    v.setPrice(dto.getPrice());
-                            });
+                            .orElseThrow(() -> new BadRequestException("Biến thể với ID " + vDto.getVariantId() + " không tồn tại hoặc không thuộc về sản phẩm này!"));
+
+                    // Cập nhật giá trị
+                    if (vDto.getSize() != null) targetVariant.setSize(vDto.getSize());
+                    if (vDto.getColor() != null) targetVariant.setColor(vDto.getColor());
+                    targetVariant.setStockQuantity(vDto.getStockQuantity());
+                    if (dto.getPrice() != null) targetVariant.setPrice(dto.getPrice());
                 } else {
                     ProductVariant variant = ProductVariant.builder()
                             .size(vDto.getSize())
