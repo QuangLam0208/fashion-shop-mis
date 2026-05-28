@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
     FORGOT_PASSWORD: `${BASE}/api/auth/forgot-password`,
     RESET_PASSWORD:  `${BASE}/api/auth/reset-password`,
     VERIFY_EMAIL:    `${BASE}/api/auth/verify-email`,
+    RESEND_VERIFICATION: `${BASE}/api/auth/resend-verification`,
   },
   DASHBOARD: {
     STATS:        `${BASE}/api/admin/dashboard/stats`,

@@ -129,16 +129,22 @@ const CategoryListPage = () => {
     }
   };
 
-  const handleDelete = async (categoryId) => {
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoad(true);
     try {
-      await adminCategoryService.delete(categoryId);
+      // Dùng ID của category đang được lưu trong state deleteTarget
+      await adminCategoryService.delete(deleteTarget.id ?? deleteTarget.category_id);
       message.success('Đã xoá danh mục');
-      await load(); // Load lại data
+      setDeleteTarget(null); // Đóng modal
+      await load();          // Load lại data
     } catch (err) {
-      message.error(err.response?.data?.message || 'Xoá thất bại — danh mục đang được dùng');
+      message.error(err.response?.data?.message || 'Xoá thất bại — danh mục đang chứa sản phẩm hoặc danh mục con.');
+    } finally {
+      setDeleteLoad(false);
     }
   };
-
+  
   // ── Options danh mục cha cho Select ──────────────────────
   const parentOpts = parents.map(c => ({ label: c.name, value: c.id }));
 
@@ -154,7 +160,7 @@ const CategoryListPage = () => {
         </Button>
       )}
       <Tooltip title="Xoá">
-        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(row.id)} />
+        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => setDeleteTarget(row)} />
       </Tooltip>
     </Space>
   );
@@ -288,7 +294,7 @@ const CategoryListPage = () => {
 
       {/* Modal Xác nhận xoá */}
       <ConfirmModal
-        open={!!deleteTarget}
+        isOpen={!!deleteTarget}
         title="Xoá danh mục"
         content={
           <span>
@@ -298,9 +304,10 @@ const CategoryListPage = () => {
             </span>
           </span>
         }
-        onOk={handleDelete}
+        onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoad}
+        danger={true}
       />
     </div>
   );
