@@ -80,4 +80,7 @@ export const API_ENDPOINTS = {
     CHECKOUT:  `${BASE}/api/customer/checkout`,
     PROFILE:   `${BASE}/api/customer/profile`,
   },
+  UPLOAD: {
+    IMAGE: `${BASE}/api/upload/image`,
+  }
 };

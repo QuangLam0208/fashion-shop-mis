@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import { adminProductService } from '../../services/productService';
 import { adminCategoryService } from '../../services/categoryService';
+import ImageUpload from '../../components/ImageUpload';
 
 const { TextArea } = Input;
 
@@ -274,8 +275,12 @@ const ProductFormPage = () => {
                 <Select size="large" options={STATUS_OPTIONS} />
               </Form.Item>
 
-              <Form.Item name="primaryImageUrl" label="Đường dẫn ảnh (URL)" extra="Bỏ trống nếu không có ảnh">
-                <Input placeholder="https://..." size="large" />
+              <Form.Item 
+                name="primaryImageUrl" 
+                label="Ảnh đại diện sản phẩm" 
+                extra="Click vào khung để tải ảnh (Hỗ trợ JPG/PNG dưới 5MB)"
+              >
+                <ImageUpload />
               </Form.Item>
             </Card>
 
