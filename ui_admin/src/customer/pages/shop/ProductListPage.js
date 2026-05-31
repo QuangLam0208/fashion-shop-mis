@@ -12,24 +12,55 @@ const { Option } = Select;
 const ProductListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Lấy các tham số từ URL (nếu có)
   const urlPage = parseInt(searchParams.get('page')) || 1;
-  const urlCategory = searchParams.get('category_id') || null;
+  const urlCategory = searchParams.get('categoryId') || searchParams.get('category_id') || null;
   const urlSort = searchParams.get('sort') || 'newest';
 
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [menuItems, setMenuItems] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [pageSize] = useState(12);
 
-  // 1. Tải danh sách Danh mục cho thanh Sidebar (Cột trái)
+  // 1. Tải toàn bộ Danh mục và xây dựng Menu phân cấp
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        // Giả định bạn có hàm lấy danh mục ở shopCategoryService
-        const res = await shopCategoryService.getParents();
-        setCategories(res || []);
+        const res = await shopCategoryService.getAll();
+        const catList = res?.data || res || [];
+        
+        let parentCategories = catList.filter(c => !c.parentId && !c.parent_id);
+        if (parentCategories.length === 0) parentCategories = catList;
+
+        const builtMenuItems = [
+          { key: 'all', icon: <AppstoreOutlined />, label: 'Tất cả sản phẩm' },
+          ...parentCategories.map(parent => {
+            const pId = parent.id || parent.categoryId || parent.category_id;
+            
+            const childrenFromFlat = catList.filter(c => {
+              const childPId = c.parentId || c.parent_id;
+              return childPId != null && childPId === pId;
+            });
+            const existingChildren = parent.children || parent.subCategories || [];
+            const subCats = existingChildren.length > 0 ? existingChildren : childrenFromFlat;
+
+            const item = {
+              key: String(pId),
+              label: parent.name
+            };
+
+            // FIX: Đã bỏ phần "Tất cả...". Chỉ map đúng danh mục con.
+            if (subCats && subCats.length > 0) {
+              item.children = subCats.map(sub => ({
+                key: String(sub.id || sub.categoryId || sub.category_id),
+                label: sub.name
+              }));
+            }
+            return item;
+          })
+        ];
+
+        setMenuItems(builtMenuItems);
       } catch (error) {
         console.error("Lỗi tải danh mục:", error);
       }
@@ -41,22 +72,21 @@ const ProductListPage = () => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      // Map các giá trị sort sang định dạng của Spring Boot
       let sortParam = '';
       if (urlSort === 'price_asc') sortParam = 'price,asc';
       if (urlSort === 'price_desc') sortParam = 'price,desc';
-      if (urlSort === 'newest') sortParam = 'productId,desc'; // Hoặc created_at,desc tuỳ BE của bạn
+      if (urlSort === 'newest') sortParam = 'productId,desc'; 
 
       const params = {
-        page: urlPage - 1, // Spring Boot tính page từ 0
+        page: urlPage - 1, 
         size: pageSize,
-        categoryId: urlCategory,
+        categoryId: urlCategory, 
+        category_id: urlCategory, 
         sort: sortParam
       };
 
       const res = await shopProductService.getAll(params);
       
-      // Xử lý chuẩn cấu trúc Page<> của Spring Boot
       setProducts(res?.content || res?.data?.content || []);
       setTotal(res?.totalElements || res?.data?.totalElements || 0);
     } catch (error) {
@@ -70,7 +100,7 @@ const ProductListPage = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // 3. Xử lý các sự kiện thay đổi bộ lọc (Cập nhật thẳng lên URL)
+  // 3. Xử lý các sự kiện thay đổi
   const handlePageChange = (page) => {
     searchParams.set('page', page);
     setSearchParams(searchParams);
@@ -79,11 +109,13 @@ const ProductListPage = () => {
 
   const handleCategorySelect = ({ key }) => {
     if (key === 'all') {
+      searchParams.delete('categoryId');
       searchParams.delete('category_id');
     } else {
-      searchParams.set('category_id', key);
+      searchParams.set('categoryId', key);
+      searchParams.delete('category_id'); 
     }
-    searchParams.set('page', 1); // Reset về trang 1 khi đổi danh mục
+    searchParams.set('page', 1);
     setSearchParams(searchParams);
   };
 
@@ -93,18 +125,30 @@ const ProductListPage = () => {
     setSearchParams(searchParams);
   };
 
-  // Cấu hình Menu Danh mục
-  const menuItems = [
-    { key: 'all', icon: <AppstoreOutlined />, label: 'Tất cả sản phẩm' },
-    ...categories.map(c => ({
-      key: (c.id ?? c.category_id).toString(),
-      label: c.name
-    }))
-  ];
+  // Logic tự động mở Menu Cha nếu URL đang trỏ vào Menu
+  const findParentKey = (childKey) => {
+    for (const item of menuItems) {
+      if (item.children) {
+        const found = item.children.find(c => c.key === childKey);
+        if (found) return item.key;
+      }
+    }
+    return null;
+  };
+
+  // Mở Menu cha tương ứng khi load lại trang
+  const defaultOpenKeys = [];
+  if (urlCategory) {
+    const parentKey = findParentKey(urlCategory);
+    if (parentKey) {
+      defaultOpenKeys.push(parentKey); // Nếu URL là con -> Mở cha
+    } else {
+      defaultOpenKeys.push(urlCategory); // Nếu URL chính là cha -> Mở chính nó
+    }
+  }
 
   return (
     <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh', paddingBottom: 60 }}>
-      {/* Breadcrumb */}
       <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #eaeaea', padding: '16px 0', marginBottom: 32 }}>
         <div className="c-container">
           <Breadcrumb>
@@ -116,23 +160,26 @@ const ProductListPage = () => {
 
       <div className="c-container">
         <Row gutter={[32, 32]}>
-          {/* CỘT TRÁI: BỘ LỌC DANH MỤC */}
           <Col xs={24} lg={6}>
             <div style={{ background: '#fff', padding: 20, borderRadius: 12, position: 'sticky', top: 80 }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Danh Mục</h3>
               <Menu
                 mode="inline"
                 selectedKeys={[urlCategory || 'all']}
+                defaultOpenKeys={defaultOpenKeys}
                 onClick={handleCategorySelect}
-                items={menuItems}
+                // FIX: Bổ sung onTitleClick cho các Menu Cha
+                items={menuItems.map(item => (
+                  item.children 
+                    ? { ...item, onTitleClick: handleCategorySelect } 
+                    : item
+                ))}
                 style={{ borderRight: 'none' }}
               />
             </div>
           </Col>
 
-          {/* CỘT PHẢI: DANH SÁCH SẢN PHẨM */}
           <Col xs={24} lg={18}>
-            {/* Thanh công cụ: Tổng số & Sắp xếp */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, background: '#fff', padding: '16px 20px', borderRadius: 12 }}>
               <span style={{ color: '#64748b' }}>Hiển thị <strong>{products.length}</strong> trên tổng số <strong>{total}</strong> sản phẩm</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -145,7 +192,6 @@ const ProductListPage = () => {
               </div>
             </div>
 
-            {/* Lưới Sản phẩm */}
             {loading ? (
               <div style={{ textAlign: 'center', padding: '100px 0' }}><Spin size="large" /></div>
             ) : products.length > 0 ? (
@@ -158,7 +204,6 @@ const ProductListPage = () => {
                   ))}
                 </Row>
                 
-                {/* Phân trang */}
                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: 40 }}>
                   <Pagination 
                     current={urlPage} 

@@ -1,5 +1,6 @@
+// src/admin/pages/categories/CategoryListPage.js
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, Tooltip, message, Tag, Popconfirm } from 'antd';
+import { Table, Button, Space, Tooltip, message, Tag } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import PageHeader   from '../../components/PageHeader';
 import ActionBar    from '../../components/ActionBar';
@@ -7,30 +8,29 @@ import SearchBar    from '../../components/SearchBar';
 import ConfirmModal from '../../components/ConfirmModal';
 import { adminCategoryService } from '../../services/categoryService';
 
+// Import Component Modal vừa tạo
+import CategoryFormModal from './CategoryFormModal';
+
 const CategoryListPage = () => {
-  const [parents,      setParents]      = useState([]); // danh mục cha (có children[])
-  const [tree,         setTree]         = useState([]); // cây đầy đủ (có children[])
+  const [parents,      setParents]      = useState([]); 
   const [loading,      setLoading]      = useState(false);
   const [searchLoad,   setSearchLoad]   = useState(false);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editItem,     setEditItem]     = useState(null);
-  const [saveLoading,  setSaveLoading]  = useState(false);
+  
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoad,   setDeleteLoad]   = useState(false);
-  const [form] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const treeData = await adminCategoryService.getAll();
-      setTree(treeData);
       
-      // ĐỔI TÊN TRƯỜNG 'children' THÀNH 'subCategories'
       const cleanParents = treeData
         .filter(c => !c.parentId && !c.parent_id)
         .map(({ children, ...rest }) => ({
           ...rest,
-          subCategories: children // Đổi tên ở đây
+          subCategories: children 
         }));
 
       setParents(cleanParents);
@@ -43,12 +43,10 @@ const CategoryListPage = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Search (Xử lý gọi API) ──────────────────────────────────
   const handleSearch = async (values) => {
     const keyword = typeof values === 'object' ? values.keyword : values;
-
     if (!keyword || !keyword.trim()) { 
-      load(); // Nếu ô tìm kiếm rỗng, load lại toàn bộ
+      load(); 
       return; 
     }
 
@@ -56,99 +54,59 @@ const CategoryListPage = () => {
     try {
       const response = await adminCategoryService.search(keyword.trim());
       
-      // XỬ LÝ THÔNG MINH CHO NHIỀU ĐỊNH DẠNG API:
       let results = [];
       if (Array.isArray(response)) {
-        results = response; // Trường hợp API trả về mảng [...] chuẩn
+        results = response;
       } else if (response?.data && Array.isArray(response.data)) {
-        results = response.data; // Trường hợp API trả về { data: [...] }
+        results = response.data;
       } else if (response && (response.id || response.category_id)) {
-        // TRƯỜNG HỢP CỦA BẠN: API trả về thẳng 1 Object { id: 1, ... }
-        // Ta tự động bọc nó vào mảng để Ant Table hiểu được
         results = [response]; 
       }
 
-      // Xử lý giấu thuộc tính 'children' để không bị lỗi xòe dòng
       const cleanResults = results.map((item) => {
         const { children, ...rest } = item;
-        return {
-          ...rest,
-          subCategories: children 
-        };
+        return { ...rest, subCategories: children };
       });
 
-      // Cập nhật lại state của Table
       setParents(cleanResults);
-
     } catch (err) {
-      console.error("Lỗi khi tìm kiếm:", err);
       message.error('Tìm kiếm thất bại, vui lòng kiểm tra lại');
     } finally {
       setSearchLoad(false);
     }
   };
 
-  // ── Modal Thêm / Sửa ─────────────────────────────────────
   const openAdd = (parentRow = null) => {
-    setEditItem(null);
-    form.resetFields();
-    if (parentRow) form.setFieldsValue({ parentId: parentRow.id });
+    // Nếu bấm "Thêm con", truyền parentId mồi vào editItem
+    setEditItem(parentRow ? { parentId: parentRow.id } : null);
     setModalOpen(true);
   };
 
   const openEdit = (row) => {
     setEditItem(row);
-    form.setFieldsValue({ 
-      name: row.name,
-      parentId: row.parentId ?? null // Đọc parentId cũ điền vào form
-    });
     setModalOpen(true);
   };
 
-  const handleSave = async () => {
-    let vals;
-    try { vals = await form.validateFields(); } catch { return; }
-    setSaveLoading(true);
-    try {
-      if (editItem) {
-        await adminCategoryService.update(editItem.id, { 
-          name: vals.name, 
-          parentId: vals.parentId ?? null 
-        });
-        message.success('Cập nhật thành công');
-      } else {
-        await adminCategoryService.create({ name: vals.name, parentId: vals.parentId ?? null });
-        message.success('Thêm danh mục thành công');
-      }
-      setModalOpen(false);
-      load();
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Thao tác thất bại');
-    } finally {
-      setSaveLoading(false);
-    }
-  };
-
+  // AC-FE-03: Delete flow
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleteLoad(true);
     try {
-      // Dùng ID của category đang được lưu trong state deleteTarget
-      await adminCategoryService.delete(deleteTarget.id ?? deleteTarget.category_id);
-      message.success('Đã xoá danh mục');
-      setDeleteTarget(null); // Đóng modal
-      await load();          // Load lại data
+      const idToDelete = deleteTarget.id ?? deleteTarget.category_id;
+      await adminCategoryService.delete(idToDelete);
+      message.success('Đã xoá danh mục thành công');
+      setDeleteTarget(null);
+      await load(); // Reload list ngay lập tức
     } catch (err) {
-      message.error(err.response?.data?.message || 'Xoá thất bại — danh mục đang chứa sản phẩm hoặc danh mục con.');
+      // AC-FE-05: Error handling
+      message.error(err.response?.data?.message || 'Xoá thất bại.');
     } finally {
       setDeleteLoad(false);
     }
   };
   
-  // ── Options danh mục cha cho Select ──────────────────────
   const parentOpts = parents.map(c => ({ label: c.name, value: c.id }));
 
-  // ── Columns ───────────────────────────────────────────────
   const actionButtons = (row, isChild = false) => (
     <Space>
       <Tooltip title="Sửa">
@@ -166,10 +124,7 @@ const CategoryListPage = () => {
   );
 
   const parentColumns = [
-    {
-      title: 'Tên danh mục',
-      dataIndex: 'name',
-    },
+    { title: 'Tên danh mục', dataIndex: 'name' },
     {
       title: 'Số danh mục con',
       dataIndex: 'childCount',
@@ -181,35 +136,18 @@ const CategoryListPage = () => {
         </Tag>
       ),
     },
-    {
-      title: 'Hành động',
-      key: 'action',
-      width: 180,
-      render: (_, row) => actionButtons(row, false),
-    },
+    { title: 'Hành động', key: 'action', width: 180, render: (_, row) => actionButtons(row, false) },
   ];
 
   const childColumns = [
     { title: 'Tên danh mục', dataIndex: 'name' },
-    {
-      title: 'Hành động',
-      key: 'action',
-      width: 100,
-      render: (_, row) => actionButtons(row, true),
-    },
+    { title: 'Hành động', key: 'action', width: 100, render: (_, row) => actionButtons(row, true) },
   ];
 
-  // ── expandedRowRender: bảng con ───────────────────────────
   const expandedRowRender = (parentRow) => {
-    // ĐỌC TỪ 'subCategories' THAY VÌ 'children'
     const children = parentRow.subCategories ?? []; 
-    
     if (!children.length) {
-      return (
-        <div style={{ padding: '8px 16px', color: '#94a3b8' }}>
-          Chưa có danh mục con
-        </div>
-      );
+      return <div style={{ padding: '8px 16px', color: '#94a3b8' }}>Chưa có danh mục con</div>;
     }
     return (
       <Table
@@ -224,7 +162,6 @@ const CategoryListPage = () => {
     );
   };
 
-  // ── Render ────────────────────────────────────────────────
   return (
     <div>
       <PageHeader title="Quản lý Danh mục" breadcrumbs={[{ label: 'Danh mục' }]} />
@@ -254,45 +191,16 @@ const CategoryListPage = () => {
         />
       </div>
 
-      {/* Modal Thêm / Sửa */}
-      <Modal
-        open={modalOpen}
-        title={editItem ? 'Sửa danh mục' : 'Thêm danh mục mới'}
-        onOk={handleSave}
-        onCancel={() => setModalOpen(false)}
-        okText={editItem ? 'Lưu' : 'Thêm'}
-        cancelText="Huỷ"
-        confirmLoading={saveLoading}
-        destroyOnClose
-      >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Tên danh mục"
-            rules={[{ required: true, message: 'Vui lòng nhập tên' }]}>
-            <Input placeholder="Ví dụ: Áo Phông" maxLength={100} showCount />
-          </Form.Item>
+      {/* COMPONENT MODAL FORM (TÁCH RIÊNG) */}
+      <CategoryFormModal 
+        visible={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSuccess={load}
+        editItem={editItem}
+        parentOpts={parentOpts}
+      />
 
-          {!editItem && (
-            <Form.Item name="parentId" label="Danh mục cha (tuỳ chọn)"
-              extra="Để trống nếu đây là danh mục cấp cao nhất">
-              <Select
-                placeholder="— Cấp cao nhất —"
-                allowClear
-                options={parentOpts}
-                showSearch
-                optionFilterProp="label"
-              />
-            </Form.Item>
-          )}
-
-          {editItem && (
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>
-              * Chỉ có thể thay đổi tên. Danh mục cha không thể chỉnh sửa.
-            </div>
-          )}
-        </Form>
-      </Modal>
-
-      {/* Modal Xác nhận xoá */}
+      {/* AC-FE-02: Delete confirmation modal */}
       <ConfirmModal
         isOpen={!!deleteTarget}
         title="Xoá danh mục"
@@ -300,7 +208,7 @@ const CategoryListPage = () => {
           <span>
             Bạn có chắc muốn xoá <strong>"{deleteTarget?.name}"</strong>?<br />
             <span style={{ color: '#ef4444', fontSize: 12 }}>
-              ⚠️ Danh mục đang có sản phẩm hoặc danh mục con sẽ không thể xoá.
+              ⚠️ Deleting this category will remove all products within it.
             </span>
           </span>
         }
