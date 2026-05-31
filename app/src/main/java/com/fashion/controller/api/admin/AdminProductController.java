@@ -29,12 +29,13 @@ public class AdminProductController {
     @GetMapping("/list")
     public ResponseEntity<Page<ProductSummaryResponseDTO>> getAdminProducts(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        return ResponseEntity.ok(productService.getAdminProducts(keyword, status, pageable));
+        return ResponseEntity.ok(productService.getAdminProducts(keyword, categoryId, status, pageable));
     }
 
     /**
