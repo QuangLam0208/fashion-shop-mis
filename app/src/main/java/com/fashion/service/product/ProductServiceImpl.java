@@ -59,9 +59,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductSummaryResponseDTO> getProducts(String keyword, Pageable pageable) {
+    public Page<ProductSummaryResponseDTO> getProducts(String keyword, Long categoryId, Pageable pageable) {
         Page<Product> productsPage = productRepository.findFiltered(
-                (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null, pageable);
+                (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null, categoryId, pageable);
 
         // Map Entity sang DTO
         return productsPage.map(product -> ProductSummaryResponseDTO.builder()
@@ -84,9 +84,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductSummaryResponseDTO> getAdminProducts(String keyword, ProductStatus status, Pageable pageable) {
+    public Page<ProductSummaryResponseDTO> getAdminProducts(String keyword, Long categoryId, ProductStatus status, Pageable pageable) {
         Page<Product> productsPage = productRepository.findForAdmin(
-                (keyword != null && !keyword.trim().isEmpty() ? keyword : null), status, pageable);
+                (keyword != null && !keyword.trim().isEmpty() ? keyword : null), categoryId, status, pageable);
 
         // Map Entity sang DTO
         return productsPage.map(product -> ProductSummaryResponseDTO.builder()
