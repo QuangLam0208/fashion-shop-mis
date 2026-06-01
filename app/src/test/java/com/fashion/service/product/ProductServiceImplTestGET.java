@@ -219,4 +219,74 @@ class ProductServiceImplTestGET {
         verify(reviewRepository, never()).countByProductId(anyLong());
         verify(reviewRepository, never()).findByProductId(anyLong(), any(Pageable.class));
     }
+
+    // =========================================================================
+    // TEST CASES CHO GET RELATED PRODUCTS (AC-US17)
+    // =========================================================================
+
+    @Test
+    void testGetRelatedProducts_Success_ExcludesSelfAndLimits() {
+        // Arrange (AC-US17-01: Cùng danh mục, loại trừ X, giới hạn limit)
+        Long productId = 1L;
+        int limit = 4;
+
+        Category category = new Category();
+        category.setId(10L);
+        category.setName("Áo Sơ Mi");
+
+        Product currentProduct = new Product();
+        currentProduct.setId(productId);
+        currentProduct.setName("Sản phẩm X");
+        currentProduct.setCategory(category);
+
+        // Tạo danh sách sản phẩm cùng danh mục trả về từ DB (Bao gồm cả chính nó và 5 sản phẩm khác)
+        Product p1 = currentProduct; // Chính nó (sẽ bị loại)
+        Product p2 = new Product(); p2.setId(2L); p2.setName("SP 2"); p2.setVariants(new ArrayList<>()); p2.setImages(new ArrayList<>());
+        Product p3 = new Product(); p3.setId(3L); p3.setName("SP 3"); p3.setVariants(new ArrayList<>()); p3.setImages(new ArrayList<>());
+        Product p4 = new Product(); p4.setId(4L); p4.setName("SP 4"); p4.setVariants(new ArrayList<>()); p4.setImages(new ArrayList<>());
+        Product p5 = new Product(); p5.setId(5L); p5.setName("SP 5"); p5.setVariants(new ArrayList<>()); p5.setImages(new ArrayList<>());
+        Product p6 = new Product(); p6.setId(6L); p6.setName("SP 6"); p6.setVariants(new ArrayList<>()); p6.setImages(new ArrayList<>()); // SP này sẽ bị cắt bởi limit
+
+        List<Product> mockDbProducts = List.of(p1, p2, p3, p4, p5, p6);
+        Page<Product> mockPage = new PageImpl<>(mockDbProducts);
+
+        when(productRepository.findById(productId)).thenReturn(Optional.of(currentProduct));
+
+        // Cần truyền limit + 1 = 5 vào PageRequest theo đúng code của bạn
+        when(productRepository.findByCategoryIds(eq(List.of(10L)), any(Pageable.class)))
+                .thenReturn(mockPage);
+
+        // Mock review cho mapToSummaryDTO (Tránh null pointer)
+        when(reviewRepository.getAverageRatingByProductId(anyLong())).thenReturn(4.5);
+        when(reviewRepository.countByProductId(anyLong())).thenReturn(10L);
+
+        // Act
+        List<ProductSummaryResponseDTO> result = productService.getRelatedProducts(productId, limit);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(limit, result.size()); // Đảm bảo chỉ lấy tối đa 4 sản phẩm
+
+        // Đảm bảo không có "Sản phẩm X" (ID = 1L) trong kết quả trả về
+        boolean containsSelf = result.stream().anyMatch(dto -> dto.getProductId().equals(productId));
+        assertFalse(containsSelf, "Danh sách không được chứa sản phẩm hiện tại");
+
+        verify(productRepository, times(1)).findById(productId);
+        verify(productRepository, times(1)).findByCategoryIds(eq(List.of(10L)), any(Pageable.class));
+    }
+
+    @Test
+    void testGetRelatedProducts_NotFound_ThrowsException() {
+        // Arrange
+        Long invalidId = 999L;
+        when(productRepository.findById(invalidId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
+                () -> productService.getRelatedProducts(invalidId, 4));
+
+        assertEquals("Sản phẩm không tồn tại!", exception.getMessage());
+
+        verify(productRepository, never()).findByCategoryIds(anyList(), any(Pageable.class));
+    }
 }

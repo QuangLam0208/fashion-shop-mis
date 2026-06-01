@@ -204,11 +204,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductSummaryResponseDTO> getRelatedProducts(Long productId, int limit) {
         Product currentProduct = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
-
-        if (currentProduct.getCategory() == null) {
-            return List.of();
-        }
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại!"));
 
         // Tìm các sản phẩm cùng danh mục
         Pageable pageable = PageRequest.of(0, limit + 1);
