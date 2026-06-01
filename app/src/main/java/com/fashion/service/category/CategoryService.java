@@ -13,8 +13,6 @@ public interface CategoryService {
 
     CategoryResponseDTO getCategoryByName(String name);
 
-    List<Long> getDescendantIds(Long categoryId);
-
     CategoryResponseDTO createCategory(CategoryRequestDTO request);
 
     CategoryResponseDTO updateCategory(Long id, CategoryRequestDTO request);

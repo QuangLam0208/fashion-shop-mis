@@ -13,7 +13,6 @@ import com.fashion.model.ProductImage;
 import com.fashion.model.ProductVariant;
 import com.fashion.model.enums.ProductStatus;
 import com.fashion.repository.*;
-import com.fashion.service.category.CategoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -39,7 +38,6 @@ public class ProductServiceImpl implements ProductService {
     private final ProductCleanupRepository cleanupRepository;
     private final ReviewRepository reviewRepository;
     private final OrderItemRepository orderItemRepository;
-    private final CategoryService categoryService;
 
     // Helper: Lấy tên danh mục an toàn (null-safe)
     private String getCategoryName(Product product) {
@@ -70,7 +68,7 @@ public class ProductServiceImpl implements ProductService {
 
         // Nếu người dùng có truyền categoryId, lấy danh sách ID của nó và toàn bộ con cháu
         if (categoryId != null) {
-            categoryIds = categoryService.getDescendantIds(categoryId);
+            categoryIds = getDescendantIds(categoryId);
             hasCategory = true;
         } else {
             // Truyền 1 phần tử ảo để tránh lỗi cú pháp "IN ()" của SQL khi list rỗng
@@ -100,6 +98,23 @@ public class ProductServiceImpl implements ProductService {
                         .mapToLong(v -> v.getStockQuantity() == null ? 0L : v.getStockQuantity()).sum())
                 .variantCount(product.getVariants().size())
                 .build());
+    }
+
+    public List<Long> getDescendantIds(Long categoryId) {
+        List<Long> ids = new ArrayList<>();
+        if (categoryId == null) {
+            return ids;
+        }
+
+        ids.add(categoryId);
+
+        List<Category> children = categoryRepository.findByParentId(categoryId); // (Hãy chắc chắn bạn có hàm này trong CategoryRepository)
+
+        for (Category child : children) {
+            ids.addAll(getDescendantIds(child.getId()));
+        }
+
+        return ids;
     }
 
     @Override

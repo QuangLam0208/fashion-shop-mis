@@ -67,24 +67,6 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public List<Long> getDescendantIds(Long categoryId) {
-        List<Long> ids = new ArrayList<>();
-        if (categoryId == null) {
-            return ids;
-        }
-
-        ids.add(categoryId);
-
-        List<Category> children = categoryRepository.findByParentId(categoryId); // (Hãy chắc chắn bạn có hàm này trong CategoryRepository)
-
-        for (Category child : children) {
-            ids.addAll(getDescendantIds(child.getId()));
-        }
-
-        return ids;
-    }
-
-    @Override
     @Transactional
     public CategoryResponseDTO createCategory(CategoryRequestDTO request) {
         Category category = new Category();
