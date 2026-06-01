@@ -146,7 +146,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public ProductDetailResponseDTO getProductDetail(Long productId) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại hoặc đã bị ngừng kinh doanh!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại hoặc đã bị ngừng kinh doanh!"));
 
         Double avgRating = reviewRepository.getAverageRatingByProductId(productId);
         long reviewCount = reviewRepository.countByProductId(productId);
