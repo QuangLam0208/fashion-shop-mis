@@ -62,7 +62,7 @@ public class AdminProductController {
     /**
      * DELETE /api/admin/products/{id}
      */
-    @DeleteMapping("/delete/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<MessageResponseDTO> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.ok(MessageResponseDTO.builder()

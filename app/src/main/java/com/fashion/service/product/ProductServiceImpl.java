@@ -6,6 +6,7 @@ import com.fashion.exception.BadRequestException;
 import com.fashion.dto.response.CategoryResponseDTO;
 import com.fashion.dto.response.ProductDetailResponseDTO;
 import com.fashion.dto.response.ProductSummaryResponseDTO;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Category;
 import com.fashion.model.Product;
 import com.fashion.model.ProductImage;
@@ -13,6 +14,7 @@ import com.fashion.model.ProductVariant;
 import com.fashion.model.enums.ProductStatus;
 import com.fashion.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
@@ -355,15 +358,21 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public void deleteProduct(Long productId) {
-        if (!productRepository.existsById(productId)) {
-            throw new RuntimeException("Sản phẩm không tồn tại!");
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại!"));
+
+        boolean isOrdered = product.getVariants().stream()
+                .anyMatch(variant -> orderItemRepository.existsByProductVariantId(variant.getId()));
+        if (isOrdered) {
+            throw new BadRequestException("Không thể xóa sản phẩm này vì đã phát sinh giao dịch mua hàng! Vui lòng chuyển trạng thái sản phẩm sang 'Ngừng kinh doanh' (INACTIVE) thay vì xóa.");
         }
 
         try {
             // High-fidelity cleanup using a dedicated repository (SOLID)
             cleanupRepository.nuclearDelete(productId);
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi hệ thống: Không thể xóa sản phẩm. Chi tiết: " + e.getMessage());
+            log.error("Lỗi khi xóa sản phẩm ID {}: ", productId, e);
+            throw new BadRequestException("Không thể xóa sản phẩm do sản phẩm đang có ràng buộc dữ liệu hoặc lỗi hệ thống.");
         }
     }
 
