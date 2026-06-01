@@ -14,5 +14,5 @@ public interface AddressRepository extends JpaRepository<Address, Long> {
     List<Address> findByUserId(Long userId);
 
     // Lấy địa chỉ mặc định của một khách hàng
-    Optional<Address> findByUserIdAndIsDefaultTrue(Long userId);
+    Optional<Address> findByIdAndUserId(Long addressId, Long userId);
 }
