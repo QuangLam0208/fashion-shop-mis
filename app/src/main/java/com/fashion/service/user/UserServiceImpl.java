@@ -5,6 +5,7 @@ import com.fashion.dto.request.UpdateCustomerStatusRequestDTO;
 import com.fashion.dto.request.UpdateProfileRequestDTO;
 import com.fashion.dto.response.*;
 
+import com.fashion.exception.BadRequestException;
 import com.fashion.model.Address;
 import com.fashion.model.OrderItem;
 import com.fashion.model.User;
@@ -42,18 +43,22 @@ public class UserServiceImpl implements UserService {
         User user = findUserById(userId);
 
         // Lấy địa chỉ mặc định (hoặc địa chỉ đầu tiên nếu không có mặc định)
-        String defaultAddressStr = user.getAddresses().stream()
-                .filter(Address::isDefault)
-                .map(Address::getFullAddress)
-                .findFirst()
-                .orElse(user.getAddresses().isEmpty() ? "" : user.getAddresses().get(0).getFullAddress());
+        List<AddressResponseDTO> addressDTOs = user.getAddresses().stream()
+                .map(a -> AddressResponseDTO.builder()
+                        .id(a.getId())
+                        .fullAddress(a.getFullAddress())
+                        .receiverName(a.getReceiverName())
+                        .receiverPhone(a.getReceiverPhone())
+                        .isDefault(a.isDefault())
+                        .build())
+                .toList();
 
         return ProfileResponseDTO.builder()
                 .userId(user.getId())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
                 .email(user.getEmail())
-                .address(defaultAddressStr) // Đã sửa đổi map sang thực thể Address
+                .address(addressDTOs)
                 .emailVerified(user.isEmailVerified())
                 .role(user.getRole())
                 .build();
@@ -67,7 +72,7 @@ public class UserServiceImpl implements UserService {
         // --- Cập nhật Phone ---
         if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
             if (userRepository.existsByPhoneAndIdNot(dto.getPhone(), userId)) {
-                throw new RuntimeException("Số điện thoại đã được sử dụng bởi tài khoản khác!");
+                throw new BadRequestException("Số điện thoại đã được sử dụng bởi tài khoản khác!");
             }
             user.setPhone(dto.getPhone());
         }
@@ -78,7 +83,7 @@ public class UserServiceImpl implements UserService {
 
                 // Kiểm tra xem email mới có bị trùng với người khác không
                 if (userRepository.existsByEmailAndIdNot(dto.getEmail(), userId)) {
-                    throw new RuntimeException("Email đã được sử dụng bởi tài khoản khác!");
+                    throw new BadRequestException("Email đã được sử dụng bởi tài khoản khác!");
                 }
 
                 // Lưu email mới vào pendingEmail và bắt đầu quy trình xác thực
@@ -98,52 +103,23 @@ public class UserServiceImpl implements UserService {
         if (dto.getFullName() != null && !dto.getFullName().isBlank()) {
             user.setFullName(capitalizeName(dto.getFullName()));
         }
-
-        // --- Cập nhật Address (Ánh xạ sang bảng addresses riêng biệt) ---
-        if (dto.getAddress() != null && !dto.getAddress().isBlank()) {
-            // Tìm kiếm địa chỉ mặc định hiện tại hoặc chọn địa chỉ đầu tiên nếu chưa gắn default
-            Address defaultAddress = user.getAddresses().stream()
-                    .filter(Address::isDefault)
-                    .findFirst()
-                    .orElse(user.getAddresses().isEmpty() ? null : user.getAddresses().get(0));
-
-            if (defaultAddress != null) {
-                // Nếu đã có địa chỉ, cập nhật lại chuỗi fullAddress
-                defaultAddress.setFullAddress(dto.getAddress());
-                if (defaultAddress.getReceiverName() == null || defaultAddress.getReceiverName().isBlank()) {
-                    defaultAddress.setReceiverName(user.getFullName());
-                }
-                if (defaultAddress.getReceiverPhone() == null || defaultAddress.getReceiverPhone().isBlank()) {
-                    defaultAddress.setReceiverPhone(user.getPhone());
-                }
-            } else {
-                // Nếu tài khoản chưa từng tạo địa chỉ, khởi tạo thực thể Address mới
-                Address newAddress = Address.builder()
-                        .user(user)
-                        .fullAddress(dto.getAddress())
-                        .receiverName(user.getFullName())
-                        .receiverPhone(user.getPhone())
-                        .isDefault(true)
-                        .build();
-                user.getAddresses().add(newAddress);
-            }
-        }
-
         user = userRepository.save(user);
 
-        // Lấy lại chuỗi địa chỉ vừa cập nhật để trả về dữ liệu chuẩn cho DTO
-        String defaultAddressStr = user.getAddresses().stream()
-                .filter(Address::isDefault)
-                .map(Address::getFullAddress)
-                .findFirst()
-                .orElse(user.getAddresses().isEmpty() ? "" : user.getAddresses().get(0).getFullAddress());
+        List<AddressResponseDTO> addressDTOs = user.getAddresses().stream()
+                .map(a -> AddressResponseDTO.builder()
+                        .fullAddress(a.getFullAddress())
+                        .receiverName(a.getReceiverName())
+                        .receiverPhone(a.getReceiverPhone())
+                        .isDefault(a.isDefault())
+                        .build())
+                .toList();
 
         return ProfileResponseDTO.builder()
                 .userId(user.getId())
                 .fullName(user.getFullName())
                 .phone(user.getPhone())
-                .email(user.getEmail()) // Vẫn trả về email cũ cho đến khi xác thực xong
-                .address(defaultAddressStr)
+                .email(user.getEmail())
+                .address(addressDTOs)
                 .pendingEmail(user.getPendingEmail())
                 .emailVerified(user.isEmailVerified())
                 .role(user.getRole())

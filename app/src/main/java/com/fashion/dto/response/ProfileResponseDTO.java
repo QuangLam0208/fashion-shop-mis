@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,7 +17,7 @@ public class ProfileResponseDTO {
     private String fullName;
     private String phone;
     private String email;
-    private String address;
+    private List<AddressResponseDTO> address;
     private String pendingEmail;
     private boolean emailVerified;
     private Role role;
