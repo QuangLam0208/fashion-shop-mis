@@ -6,6 +6,7 @@ import com.fashion.exception.BadRequestException;
 import com.fashion.dto.response.CategoryResponseDTO;
 import com.fashion.dto.response.ProductDetailResponseDTO;
 import com.fashion.dto.response.ProductSummaryResponseDTO;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Category;
 import com.fashion.model.Product;
 import com.fashion.model.ProductImage;
@@ -13,6 +14,7 @@ import com.fashion.model.ProductVariant;
 import com.fashion.model.enums.ProductStatus;
 import com.fashion.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
@@ -60,8 +63,23 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public Page<ProductSummaryResponseDTO> getProducts(String keyword, Long categoryId, Pageable pageable) {
+        List<Long> categoryIds = new ArrayList<>();
+        boolean hasCategory = false;
+
+        // Nếu người dùng có truyền categoryId, lấy danh sách ID của nó và toàn bộ con cháu
+        if (categoryId != null) {
+            categoryIds = getDescendantIds(categoryId);
+            hasCategory = true;
+        } else {
+            // Truyền 1 phần tử ảo để tránh lỗi cú pháp "IN ()" của SQL khi list rỗng
+            categoryIds.add(-1L);
+        }
+
         Page<Product> productsPage = productRepository.findFiltered(
-                (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null, categoryId, pageable);
+                (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null,
+                categoryIds,
+                hasCategory,
+                pageable);
 
         // Map Entity sang DTO
         return productsPage.map(product -> ProductSummaryResponseDTO.builder()
@@ -80,6 +98,23 @@ public class ProductServiceImpl implements ProductService {
                         .mapToLong(v -> v.getStockQuantity() == null ? 0L : v.getStockQuantity()).sum())
                 .variantCount(product.getVariants().size())
                 .build());
+    }
+
+    public List<Long> getDescendantIds(Long categoryId) {
+        List<Long> ids = new ArrayList<>();
+        if (categoryId == null) {
+            return ids;
+        }
+
+        ids.add(categoryId);
+
+        List<Category> children = categoryRepository.findByParentId(categoryId); // (Hãy chắc chắn bạn có hàm này trong CategoryRepository)
+
+        for (Category child : children) {
+            ids.addAll(getDescendantIds(child.getId()));
+        }
+
+        return ids;
     }
 
     @Override
@@ -111,7 +146,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public ProductDetailResponseDTO getProductDetail(Long productId) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại hoặc đã bị ngừng kinh doanh!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại hoặc đã bị ngừng kinh doanh!"));
 
         Double avgRating = reviewRepository.getAverageRatingByProductId(productId);
         long reviewCount = reviewRepository.countByProductId(productId);
@@ -169,11 +204,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductSummaryResponseDTO> getRelatedProducts(Long productId, int limit) {
         Product currentProduct = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
-
-        if (currentProduct.getCategory() == null) {
-            return List.of();
-        }
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại!"));
 
         // Tìm các sản phẩm cùng danh mục
         Pageable pageable = PageRequest.of(0, limit + 1);
@@ -355,15 +386,21 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public void deleteProduct(Long productId) {
-        if (!productRepository.existsById(productId)) {
-            throw new RuntimeException("Sản phẩm không tồn tại!");
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại!"));
+
+        boolean isOrdered = product.getVariants().stream()
+                .anyMatch(variant -> orderItemRepository.existsByProductVariantId(variant.getId()));
+        if (isOrdered) {
+            throw new BadRequestException("Không thể xóa sản phẩm này vì đã phát sinh giao dịch mua hàng! Vui lòng chuyển trạng thái sản phẩm sang 'Ngừng kinh doanh' (INACTIVE) thay vì xóa.");
         }
 
         try {
             // High-fidelity cleanup using a dedicated repository (SOLID)
             cleanupRepository.nuclearDelete(productId);
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi hệ thống: Không thể xóa sản phẩm. Chi tiết: " + e.getMessage());
+            log.error("Lỗi khi xóa sản phẩm ID {}: ", productId, e);
+            throw new BadRequestException("Không thể xóa sản phẩm do sản phẩm đang có ràng buộc dữ liệu hoặc lỗi hệ thống.");
         }
     }
 

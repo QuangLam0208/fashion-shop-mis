@@ -60,7 +60,7 @@ public class AdminProductController {
     }
 
     /**
-     * DELETE /api/admin/products/{id}
+     * DELETE /api/admin/products/delete/{id}
      */
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<MessageResponseDTO> deleteProduct(@PathVariable Long id) {
