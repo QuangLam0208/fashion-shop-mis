@@ -26,21 +26,22 @@ public class AdminProductController {
     /**
      * GET /api/admin/products?keyword=&status=ACTIVE&page=0&size=10
      */
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<ProductSummaryResponseDTO>> getAdminProducts(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) ProductStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        return ResponseEntity.ok(productService.getAdminProducts(keyword, status, pageable));
+        return ResponseEntity.ok(productService.getAdminProducts(keyword, categoryId, status, pageable));
     }
 
     /**
-     * POST /api/admin/products
+     * POST /api/admin/products/create
      */
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<ProductDetailResponseDTO> createProduct(
             @Valid @RequestBody CreateProductRequestDTO dto
     ) {
@@ -48,9 +49,9 @@ public class AdminProductController {
     }
 
     /**
-     * PUT /api/admin/products/{id}
+     * PUT /api/admin/products/update/{id}
      */
-    @PutMapping("/{id}")
+    @PutMapping("/update/{id}")
     public ResponseEntity<ProductDetailResponseDTO> updateProduct(
             @PathVariable Long id,
             @Valid @RequestBody UpdateProductRequestDTO dto
@@ -59,9 +60,9 @@ public class AdminProductController {
     }
 
     /**
-     * DELETE /api/admin/products/{id}
+     * DELETE /api/admin/products/delete/{id}
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<MessageResponseDTO> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.ok(MessageResponseDTO.builder()

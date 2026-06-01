@@ -23,7 +23,7 @@ public class AdminOrderController {
     private final OrderManagementService orderManagementService;
 
     // DANH SÁCH TẤT CẢ ĐƠN HÀNG
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<OrderSummaryResponseDTO>> getAllOrders(
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,

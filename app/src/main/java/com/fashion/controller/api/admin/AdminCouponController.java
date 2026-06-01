@@ -20,7 +20,7 @@ public class AdminCouponController {
     private final CouponService couponService;
 
     // XEM TẤT CẢ MÃ
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<CouponResponseDTO>> getAllCoupons(
             @RequestParam(required = false) String keyword,
             Pageable pageable) {

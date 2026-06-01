@@ -23,7 +23,7 @@ public class CouponController {
     private final CouponService couponService;
 
     // XEM DANH SÁCH MÃ
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<List<CouponResponseDTO>> getAvailableCoupons() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(couponService.getAvailableCoupons(userId));

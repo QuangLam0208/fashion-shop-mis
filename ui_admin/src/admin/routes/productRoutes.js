@@ -5,7 +5,7 @@ import ProductFormPage from '../pages/products/ProductFormPage';
 const productRoutes = (
   <>
     <Route path="products" element={<ProductListPage />} />
-    <Route path="products/new" element={<ProductFormPage />} />
+    <Route path="products/create" element={<ProductFormPage />} />
     <Route path="products/:id/edit" element={<ProductFormPage />} />
   </>
 );

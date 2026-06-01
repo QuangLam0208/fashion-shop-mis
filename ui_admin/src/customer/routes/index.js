@@ -17,6 +17,7 @@ import LandingPage       from '../pages/landing/LandingPage';
 import ProductListPage   from '../pages/shop/ProductListPage';
 import ProductDetailPage from '../pages/shop/ProductDetailPage';
 import CategoryPage      from '../pages/shop/CategoryPage';
+import WishlistPage    from '../pages/shop/WishlistPage';
 
 // ── Checkout
 import CartPage         from '../pages/checkout/CartPage';
@@ -27,7 +28,6 @@ import OrderConfirmPage from '../pages/checkout/OrderConfirmPage';
 import ProfilePage     from '../pages/account/ProfilePage';
 import MyOrdersPage    from '../pages/account/MyOrdersPage';
 import OrderDetailPage from '../pages/account/OrderDetailPage';
-import WishlistPage    from '../pages/account/WishlistPage';
 
 // ── 404
 import NotFoundPage from '../pages/NotFoundPage';
@@ -48,6 +48,7 @@ const CustomerRoutes = () => (
       <Route path="shop"        element={<ProductListPage />} />
       <Route path="shop/:id"    element={<ProductDetailPage />} />
       <Route path="category/:id" element={<CategoryPage />} />
+      <Route path="wishlist" element={<WishlistPage />} />
 
       {/* Protected */}
       <Route element={<CustomerPrivateRoute />}>
@@ -57,7 +58,7 @@ const CustomerRoutes = () => (
         <Route path="account/profile"    element={<ProfilePage />} />
         <Route path="account/orders"     element={<MyOrdersPage />} />
         <Route path="account/orders/:id" element={<OrderDetailPage />} />
-        <Route path="account/wishlist"   element={<WishlistPage />} />
+        {/* <Route path="account/wishlist"   element={<WishlistPage />} /> */}
       </Route>
     </Route>
 

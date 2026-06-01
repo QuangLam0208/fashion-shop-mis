@@ -1,4 +1,3 @@
-// src/customer/layouts/CustomerLayout.js
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar     from './Navbar';

@@ -1,21 +1,12 @@
-// src/customer/context/CustomerAuthContext.js
+
 import React, { createContext, useState, useCallback } from 'react';
 import customerAuthService from '../services/customerAuthService';
 
 export const CustomerAuthContext = createContext(null);
 
-/**
- * CustomerAuthProvider
- *
- * Vì backend không có /me endpoint, user info được lưu tạm
- * vào localStorage khi login và đọc lại khi reload trang.
- *
- * Storage keys:
- *   fashion_customer_token        — JWT access token
- *   fashion_customer_refresh_token — refresh token
- *   fashion_customer_user         — user info JSON
- */
+// 1. KHAI BÁO TÊN KEY ĐỒNG NHẤT
 const USER_KEY = 'fashion_customer_user';
+const TOKEN_KEY = 'fashion_customer_token';
 
 const _loadUser = () => {
   try {
@@ -25,36 +16,42 @@ const _loadUser = () => {
   }
 };
 
+// Hàm tự động load token khi khởi tạo (Thay thế cho customerAuthService.getToken cũ)
+const _loadToken = () => {
+  return localStorage.getItem(TOKEN_KEY) || null;
+};
+
 export const CustomerAuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(_loadUser);
-  const [token, setToken]             = useState(customerAuthService.getToken);
+  const [token, setToken]             = useState(_loadToken);
 
   const isAuthenticated = !!currentUser && !!token;
 
-  /**
-   * Đăng nhập
-   * @param {string}  email
-   * @param {string}  password
-   * @param {boolean} remember — true: lưu localStorage
-   */
-  const login = useCallback(async (email, password, remember = true) => {
-    const data = await customerAuthService.login(email, password, remember);
-    // data = { token, refreshToken, user }
-    customerAuthService.saveTokens(
-      { token: data.token, refreshToken: data.refreshToken },
-      remember
-    );
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-    setToken(data.token);
-    setCurrentUser(data.user);
+  const login = useCallback(async (email, password) => {
+    const res = await customerAuthService.login(email, password);
+    
+    const userData = {
+      id: res.userId,
+      full_name: res.fullName,
+      email: res.email,
+      role: res.role
+    };
+
+    setCurrentUser(userData);
+    setToken(res.accessToken);
+
+    // 2. SỬA LỖI LƯU SAI KEY Ở ĐÂY (Dùng đúng biến USER_KEY và TOKEN_KEY)
+    localStorage.setItem(TOKEN_KEY, res.accessToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(userData));
   }, []);
 
-  /**
-   * Đăng xuất
-   */
   const logout = useCallback(async () => {
-    await customerAuthService.logout();
+    if (customerAuthService.logout) {
+      await customerAuthService.logout();
+    }
+    // 3. XÓA SẠCH KEY KHI ĐĂNG XUẤT
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setCurrentUser(null);
   }, []);
