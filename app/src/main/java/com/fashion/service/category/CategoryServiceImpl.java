@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -63,6 +64,24 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = categoryRepository.findByName(name)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với tên: " + name));
         return mapToDTO(category);
+    }
+
+    @Override
+    public List<Long> getDescendantIds(Long categoryId) {
+        List<Long> ids = new ArrayList<>();
+        if (categoryId == null) {
+            return ids;
+        }
+
+        ids.add(categoryId);
+
+        List<Category> children = categoryRepository.findByParentId(categoryId); // (Hãy chắc chắn bạn có hàm này trong CategoryRepository)
+
+        for (Category child : children) {
+            ids.addAll(getDescendantIds(child.getId()));
+        }
+
+        return ids;
     }
 
     @Override
