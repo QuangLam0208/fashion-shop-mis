@@ -16,13 +16,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Lấy các sản phẩm có trạng thái còn bán
     List<Product> findByStatus(ProductStatus status);
 
-    // Tìm sản phẩm theo từ khóa (Keyword)
+    // Tìm sản phẩm kết hợp cả Keyword và Category IDs (bao gồm con cháu)
     @Query("SELECT DISTINCT p FROM Product p " +
-           "LEFT JOIN p.category c " +
-           "WHERE (:keyword IS NULL OR :keyword = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "AND (:categoryId IS NULL OR c.id = :categoryId OR c.parent.id =:categoryId)" +
-           "AND p.status = 'ACTIVE'")
-    Page<Product> findFiltered(@Param("keyword") String keyword, @Param("categoryId") Long categoryId, Pageable pageable);
+            "LEFT JOIN p.category c " +
+            "WHERE (:keyword IS NULL OR :keyword = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "AND (:hasCategory = false OR c.id IN :categoryIds) " +
+            "AND p.status = 'ACTIVE'")
+    Page<Product> findFiltered(@Param("keyword") String keyword, @Param("categoryIds") List<Long> categoryIds,
+                               @Param("hasCategory") boolean hasCategory, Pageable pageable);
 
     // Tìm sản phẩm theo danh sách category IDs (bao gồm danh mục cha + con)
     @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.images i WHERE p.category.id IN :categoryIds AND p.status = 'ACTIVE'")

@@ -13,6 +13,7 @@ import com.fashion.model.ProductImage;
 import com.fashion.model.ProductVariant;
 import com.fashion.model.enums.ProductStatus;
 import com.fashion.repository.*;
+import com.fashion.service.category.CategoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,6 +39,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductCleanupRepository cleanupRepository;
     private final ReviewRepository reviewRepository;
     private final OrderItemRepository orderItemRepository;
+    private final CategoryService categoryService;
 
     // Helper: Lấy tên danh mục an toàn (null-safe)
     private String getCategoryName(Product product) {
@@ -63,8 +65,23 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public Page<ProductSummaryResponseDTO> getProducts(String keyword, Long categoryId, Pageable pageable) {
+        List<Long> categoryIds = new ArrayList<>();
+        boolean hasCategory = false;
+
+        // Nếu người dùng có truyền categoryId, lấy danh sách ID của nó và toàn bộ con cháu
+        if (categoryId != null) {
+            categoryIds = categoryService.getDescendantIds(categoryId);
+            hasCategory = true;
+        } else {
+            // Truyền 1 phần tử ảo để tránh lỗi cú pháp "IN ()" của SQL khi list rỗng
+            categoryIds.add(-1L);
+        }
+
         Page<Product> productsPage = productRepository.findFiltered(
-                (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null, categoryId, pageable);
+                (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null,
+                categoryIds,
+                hasCategory,
+                pageable);
 
         // Map Entity sang DTO
         return productsPage.map(product -> ProductSummaryResponseDTO.builder()
