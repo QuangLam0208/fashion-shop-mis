@@ -31,7 +31,7 @@ public class UserController {
     }
 
     // CẬP NHẬT THÔNG TIN
-    @PutMapping("/me")
+    @PutMapping("/me/update")
     public ResponseEntity<ProfileResponseDTO> updateProfile(
             @Valid @RequestBody UpdateProfileRequestDTO dto) {
         Long userId = getAuthenticatedUserId();
@@ -49,7 +49,7 @@ public class UserController {
     }
 
     // XÓA TÀI KHOẢN
-    @DeleteMapping("/me")
+    @DeleteMapping("/me/delete")
     public ResponseEntity<MessageResponseDTO> deleteAccount() {
         Long userId = getAuthenticatedUserId();
         MessageResponseDTO response = userService.deleteAccount(userId);
