@@ -54,6 +54,7 @@ public class AddressServiceImpl implements AddressService{
                 .fullAddress(dto.getFullAddress())
                 .receiverName(dto.getReceiverName())
                 .receiverPhone(dto.getReceiverPhone())
+                .isDefault(isDefault)
                 .build();
         return mapToDTO(addressRepository.save(address));
     }
