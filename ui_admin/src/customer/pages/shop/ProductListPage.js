@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Pagination, Select, Spin, Empty, Menu, Breadcrumb } from 'antd';
-import { HomeOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { HomeOutlined, AppstoreOutlined, SlackSquareFilled } from '@ant-design/icons';
 import { useSearchParams, Link } from 'react-router-dom';
 import ProductCard from '../../components/ProductCard';
 import { shopProductService } from '../../services/shopProductService';

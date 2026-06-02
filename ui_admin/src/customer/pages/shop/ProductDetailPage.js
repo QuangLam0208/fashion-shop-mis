@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Row, Col, Button, InputNumber, Spin, Breadcrumb, message, Divider, Tag, Space } from 'antd';
-import { HomeOutlined, ShoppingCartOutlined, CreditCardOutlined } from '@ant-design/icons';
+import { Row, Col, Button, InputNumber, Spin, Breadcrumb, message, Divider, Space, Rate, Avatar, List, Typography } from 'antd';
+import { HomeOutlined, ShoppingCartOutlined, CreditCardOutlined, UserOutlined } from '@ant-design/icons';
 import { shopProductService } from '../../services/shopProductService';
 import useCart from '../../hooks/useCart';
 import { formatCurrency } from '../../../shared/utils/formatters';
+
+const { Text, Paragraph } = Typography;
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -24,13 +26,11 @@ const ProductDetailPage = () => {
       setLoading(true);
       try {
         const data = await shopProductService.getById(id);
-        
-        // Chuẩn hóa dữ liệu trả về (hỗ trợ cả format cũ và mới)
         const productData = data?.data || data;
         setProduct(productData);
         
-        // Cài đặt ảnh mặc định
-        setMainImage(productData.primaryImageUrl || productData.image || 'https://placehold.co/600x600?text=No+Image');
+        // Sửa lại: lấy mainImage theo đúng DTO trả về
+        setMainImage(productData.mainImage || 'https://placehold.co/600x600?text=No+Image');
         
         // Mặc định chọn biến thể đầu tiên nếu có
         if (productData.variants && productData.variants.length > 0) {
@@ -38,7 +38,8 @@ const ProductDetailPage = () => {
         }
       } catch (error) {
         console.error('Lỗi tải sản phẩm:', error);
-        message.error('Không tìm thấy sản phẩm!');
+        // Nhận diện lỗi 404 từ backend
+        message.error(error.response?.data?.message || 'Không tìm thấy sản phẩm!');
         navigate('/shop');
       } finally {
         setLoading(false);
@@ -50,23 +51,20 @@ const ProductDetailPage = () => {
   const handleAddToCart = () => {
     if (!product) return;
     
-    // Nếu sản phẩm có phân loại, bắt buộc phải chọn
     if (product.variants?.length > 0 && !selectedVariant) {
       message.warning('Vui lòng chọn phân loại hàng!');
       return;
     }
 
-    // Gửi payload xuống Context Giỏ hàng
     addItem({
-      productId: product.productId || product.id,
-      variantId: selectedVariant?.variantId || selectedVariant?.id, // Gửi kèm variantId nếu BE hỗ trợ
+      productId: product.productId,
+      variantId: selectedVariant?.variantId,
       quantity: quantity
     });
   };
 
   const handleBuyNow = () => {
     handleAddToCart();
-    // Đợi một chút để giỏ hàng cập nhật rồi chuyển sang trang Checkout
     setTimeout(() => {
       navigate('/checkout');
     }, 500);
@@ -78,9 +76,9 @@ const ProductDetailPage = () => {
 
   if (!product) return null;
 
-  // Tính toán giá và kho hiển thị dựa trên biến thể đang chọn
-  const displayPrice = selectedVariant?.price || product.price || 0;
-  const displayStock = selectedVariant?.stockQuantity ?? product.totalStock ?? 0;
+  // Tính toán giá và kho. Nếu chưa chọn biến thể, ưu tiên show khoảng giá / giá nhỏ nhất.
+  const displayPrice = selectedVariant?.price || product.price || product.minPrice || 0;
+  const displayStock = selectedVariant ? selectedVariant.stockQuantity : (product.variants?.reduce((sum, v) => sum + v.stockQuantity, 0) || 0);
   const isOutOfStock = displayStock <= 0 || product.status === 'OUT_OF_STOCK';
 
   return (
@@ -108,14 +106,20 @@ const ProductDetailPage = () => {
                   style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover', aspectRatio: '1/1' }} 
                 />
               </div>
-              {/* Nếu có nhiều ảnh, render danh sách thumbnail ở đây */}
-              {product.imageUrls && product.imageUrls.length > 1 && (
+              
+              {/* Sửa lại: Map qua mảng images là các Object theo chuẩn ProductImageDTO */}
+              {product.images && product.images.length > 1 && (
                 <div style={{ display: 'flex', gap: 12, marginTop: 16, overflowX: 'auto' }}>
-                  {product.imageUrls.map((img, idx) => (
+                  {product.images.map((img) => (
                     <img 
-                      key={idx} src={img} alt={`thumb-${idx}`}
-                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', border: mainImage === img ? '2px solid #1677ff' : '1px solid #eaeaea' }}
-                      onClick={() => setMainImage(img)}
+                      key={img.imageId} 
+                      src={img.url} 
+                      alt={`thumb-${img.imageId}`}
+                      style={{ 
+                        width: 80, height: 80, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', 
+                        border: mainImage === img.url ? '2px solid #1677ff' : '1px solid #eaeaea' 
+                      }}
+                      onClick={() => setMainImage(img.url)}
                     />
                   ))}
                 </div>
@@ -128,10 +132,11 @@ const ProductDetailPage = () => {
                 {product.name}
               </h1>
               
-              <Space style={{ marginBottom: 16 }}>
-                <span style={{ color: '#64748b' }}>Đã bán: <strong>{product.soldQuantity || 0}</strong></span>
-                <Divider type="vertical" />
-                <span style={{ color: '#64748b' }}>Đánh giá: ⭐ <strong>{product.averageRating || 'Chưa có'}</strong> ({product.reviewCount || 0})</span>
+              <Space style={{ marginBottom: 16, alignItems: 'center' }}>
+                <Rate disabled defaultValue={product.averageRating} allowHalf style={{ fontSize: 16, color: '#fadb14' }} />
+                <span style={{ color: '#64748b', fontSize: 15 }}>
+                  {product.averageRating?.toFixed(1)} ({product.reviewCount} Đánh giá)
+                </span>
               </Space>
 
               <div style={{ background: '#fafafa', padding: '16px 24px', borderRadius: 8, marginBottom: 24 }}>
@@ -147,8 +152,8 @@ const ProductDetailPage = () => {
                   <Space wrap size={[12, 12]}>
                     {product.variants.map((v) => (
                       <Button 
-                        key={v.variantId || v.id}
-                        type={selectedVariant?.variantId === (v.variantId || v.id) ? 'primary' : 'default'}
+                        key={v.variantId}
+                        type={selectedVariant?.variantId === v.variantId ? 'primary' : 'default'}
                         onClick={() => setSelectedVariant(v)}
                         style={{ height: 'auto', padding: '6px 16px', borderRadius: 6 }}
                       >
@@ -204,13 +209,59 @@ const ProductDetailPage = () => {
           <Divider style={{ margin: '40px 0' }} />
 
           {/* MÔ TẢ CHI TIẾT */}
-          <div>
+          <div style={{ marginBottom: 48 }}>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Mô tả sản phẩm</h3>
             <div 
               style={{ fontSize: 15, lineHeight: 1.8, color: '#334155', whiteSpace: 'pre-wrap' }}
               dangerouslySetInnerHTML={{ __html: product.description || 'Chưa có mô tả cho sản phẩm này.' }} 
             />
           </div>
+
+          <Divider style={{ margin: '40px 0' }} />
+
+          {/* DANH SÁCH ĐÁNH GIÁ (Mới thêm vào) */}
+          <div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>
+              Đánh giá sản phẩm ({product.reviewCount || 0})
+            </h3>
+            
+            {product.reviews && product.reviews.length > 0 ? (
+              <List
+                itemLayout="horizontal"
+                dataSource={product.reviews}
+                renderItem={(item) => (
+                  <List.Item style={{ padding: '20px 0' }}>
+                    <List.Item.Meta
+                      avatar={<Avatar icon={<UserOutlined />} size={40} />}
+                      title={
+                        <Space direction="vertical" size={2}>
+                          <Text strong>{item.reviewerName}</Text>
+                          <Rate disabled defaultValue={item.rating} style={{ fontSize: 14 }} />
+                        </Space>
+                      }
+                      description={
+                        <div style={{ marginTop: 8 }}>
+                          <Space style={{ marginBottom: 8 }}>
+                            <Text type="secondary" style={{ fontSize: 13 }}>{item.createdAt}</Text>
+                            <Divider type="vertical" />
+                            <Text type="secondary" style={{ fontSize: 13 }}>Phân loại: {item.color} - {item.size}</Text>
+                          </Space>
+                          <Paragraph style={{ color: '#1a1a1a', fontSize: 15, marginBottom: 0 }}>
+                            {item.comment}
+                          </Paragraph>
+                        </div>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+                Sản phẩm này chưa có đánh giá nào.
+              </div>
+            )}
+          </div>
+          
         </div>
       </div>
     </div>
