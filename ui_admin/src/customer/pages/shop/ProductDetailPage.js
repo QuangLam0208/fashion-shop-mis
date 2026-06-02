@@ -5,6 +5,7 @@ import { HomeOutlined, ShoppingCartOutlined, CreditCardOutlined, UserOutlined } 
 import { shopProductService } from '../../services/shopProductService';
 import useCart from '../../hooks/useCart';
 import { formatCurrency } from '../../../shared/utils/formatters';
+import ProductCard from '../../components/ProductCard'; // Import ProductCard để hiển thị sp liên quan
 
 const { Text, Paragraph } = Typography;
 
@@ -14,38 +15,52 @@ const ProductDetailPage = () => {
   const { addItem } = useCart();
 
   const [product, setProduct] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]); // State lưu sp liên quan
   const [loading, setLoading] = useState(true);
   
-  // Trạng thái chọn mua
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [mainImage, setMainImage] = useState('');
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    // Cuộn lên đầu trang mỗi khi ID thay đổi (đặc biệt khi click từ mục Sản phẩm liên quan)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const fetchProductAndRelated = async () => {
       setLoading(true);
       try {
+        // 1. Tải thông tin sản phẩm chính
         const data = await shopProductService.getById(id);
         const productData = data?.data || data;
         setProduct(productData);
-        
-        // Sửa lại: lấy mainImage theo đúng DTO trả về
         setMainImage(productData.mainImage || 'https://placehold.co/600x600?text=No+Image');
         
-        // Mặc định chọn biến thể đầu tiên nếu có
         if (productData.variants && productData.variants.length > 0) {
           setSelectedVariant(productData.variants[0]);
         }
+
+        // 2. Tải danh sách sản phẩm liên quan
+        try {
+          const relatedData = await shopProductService.getRelated(id, 4);
+          setRelatedProducts(relatedData?.data || relatedData || []);
+        } catch (relError) {
+          console.error('Không thể tải sản phẩm liên quan:', relError);
+          setRelatedProducts([]); // Fallback rỗng nếu lỗi
+        }
+
       } catch (error) {
         console.error('Lỗi tải sản phẩm:', error);
-        // Nhận diện lỗi 404 từ backend
         message.error(error.response?.data?.message || 'Không tìm thấy sản phẩm!');
         navigate('/shop');
       } finally {
         setLoading(false);
       }
     };
-    fetchProduct();
+    
+    fetchProductAndRelated();
+    
+    // Reset lại state số lượng mỗi khi xem sp mới
+    setQuantity(1);
   }, [id, navigate]);
 
   const handleAddToCart = () => {
@@ -76,7 +91,6 @@ const ProductDetailPage = () => {
 
   if (!product) return null;
 
-  // Tính toán giá và kho. Nếu chưa chọn biến thể, ưu tiên show khoảng giá / giá nhỏ nhất.
   const displayPrice = selectedVariant?.price || product.price || product.minPrice || 0;
   const displayStock = selectedVariant ? selectedVariant.stockQuantity : (product.variants?.reduce((sum, v) => sum + v.stockQuantity, 0) || 0);
   const isOutOfStock = displayStock <= 0 || product.status === 'OUT_OF_STOCK';
@@ -95,9 +109,9 @@ const ProductDetailPage = () => {
       </div>
 
       <div className="c-container">
+        {/* KHU VỰC THÔNG TIN CHÍNH */}
         <div style={{ background: '#fff', padding: 32, borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
           <Row gutter={[48, 32]}>
-            {/* CỘT TRÁI: HÌNH ẢNH */}
             <Col xs={24} md={10}>
               <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #eaeaea' }}>
                 <img 
@@ -107,7 +121,6 @@ const ProductDetailPage = () => {
                 />
               </div>
               
-              {/* Sửa lại: Map qua mảng images là các Object theo chuẩn ProductImageDTO */}
               {product.images && product.images.length > 1 && (
                 <div style={{ display: 'flex', gap: 12, marginTop: 16, overflowX: 'auto' }}>
                   {product.images.map((img) => (
@@ -126,7 +139,6 @@ const ProductDetailPage = () => {
               )}
             </Col>
 
-            {/* CỘT PHẢI: THÔNG TIN VÀ NÚT MUA */}
             <Col xs={24} md={14}>
               <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8, color: '#1a1a1a' }}>
                 {product.name}
@@ -145,7 +157,6 @@ const ProductDetailPage = () => {
                 </div>
               </div>
 
-              {/* CHỌN BIẾN THỂ (MÀU SẮC / KÍCH THƯỚC) */}
               {product.variants && product.variants.length > 0 && (
                 <div style={{ marginBottom: 24 }}>
                   <div style={{ marginBottom: 8, fontWeight: 600 }}>Chọn Phân loại:</div>
@@ -164,7 +175,6 @@ const ProductDetailPage = () => {
                 </div>
               )}
 
-              {/* CHỌN SỐ LƯỢNG */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
                 <div style={{ fontWeight: 600 }}>Số lượng:</div>
                 <InputNumber 
@@ -178,7 +188,6 @@ const ProductDetailPage = () => {
                 <span style={{ color: '#64748b' }}>{displayStock} sản phẩm có sẵn</span>
               </div>
 
-              {/* NÚT MUA HÀNG */}
               <Row gutter={16}>
                 <Col span={12}>
                   <Button 
@@ -208,7 +217,7 @@ const ProductDetailPage = () => {
 
           <Divider style={{ margin: '40px 0' }} />
 
-          {/* MÔ TẢ CHI TIẾT */}
+          {/* MÔ TẢ */}
           <div style={{ marginBottom: 48 }}>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Mô tả sản phẩm</h3>
             <div 
@@ -219,7 +228,7 @@ const ProductDetailPage = () => {
 
           <Divider style={{ margin: '40px 0' }} />
 
-          {/* DANH SÁCH ĐÁNH GIÁ (Mới thêm vào) */}
+          {/* DANH SÁCH ĐÁNH GIÁ */}
           <div>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>
               Đánh giá sản phẩm ({product.reviewCount || 0})
@@ -261,8 +270,24 @@ const ProductDetailPage = () => {
               </div>
             )}
           </div>
-          
         </div>
+
+        {/* KHU VỰC SẢN PHẨM LIÊN QUAN (MỚI THÊM) */}
+        {relatedProducts && relatedProducts.length > 0 && (
+          <div style={{ marginTop: 48, marginBottom: 24 }}>
+            <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24, textAlign: 'center', color: '#1a1a1a' }}>
+              SẢN PHẨM TƯƠNG TỰ
+            </h3>
+            <Row gutter={[24, 24]}>
+              {relatedProducts.map(relProduct => (
+                <Col xs={12} sm={12} md={8} lg={6} key={relProduct.productId || relProduct.id}>
+                  {/* Tái sử dụng component ProductCard của bạn */}
+                  <ProductCard product={relProduct} /> 
+                </Col>
+              ))}
+            </Row>
+          </div>
+        )}
       </div>
     </div>
   );
