@@ -25,7 +25,4 @@ public class UpdateProfileRequestDTO {
     @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không hợp lệ")
     private String email;
-
-    @Size(max = 500, message = "Địa chỉ không được vượt quá 500 ký tự")
-    private String address;
 }

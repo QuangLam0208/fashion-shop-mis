@@ -12,19 +12,14 @@ import org.springframework.data.domain.Pageable;
 
 public interface UserService {
     // Quản lý thông tin cá nhân
-    ProfileResponseDTO getProfile(Long userId);
-
-    ProfileResponseDTO updateProfile(Long userId, UpdateProfileRequestDTO dto);
-
+    ProfileResponseDTO getProfile();
+    ProfileResponseDTO updateProfile(UpdateProfileRequestDTO dto);
     // Đổi mật khẩu
-    MessageResponseDTO changePassword(Long userId, ChangePasswordRequestDTO dto);
-
+    MessageResponseDTO changePassword(ChangePasswordRequestDTO dto);
     // Xóa tài khoản
-    MessageResponseDTO deleteAccount(Long userId);
-
+    MessageResponseDTO deleteAccount();
     // Xác thực email
-    MessageResponseDTO resendVerification(Long userId);
-
+    MessageResponseDTO resendVerification();
     // Admin
     Page<CustomerSummaryResponseDTO> getAllCustomers(String keyword, Pageable pageable);
 

@@ -1,5 +1,6 @@
 package com.fashion.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
@@ -23,5 +24,6 @@ public class AddressRequestDTO {
     @NotBlank(message = "Địa chỉ chi tiết không được để trống")
     private String fullAddress;
 
+    @JsonProperty("isDefault")
     private boolean isDefault;
 }
