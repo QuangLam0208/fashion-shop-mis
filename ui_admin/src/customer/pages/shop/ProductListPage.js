@@ -1,6 +1,7 @@
+// src/customer/pages/shop/ProductListPage.js
 import React, { useState, useEffect, useCallback } from 'react';
-import { Row, Col, Pagination, Select, Spin, Empty, Menu, Breadcrumb } from 'antd';
-import { HomeOutlined, AppstoreOutlined, SlackSquareFilled } from '@ant-design/icons';
+import { Row, Col, Pagination, Select, Spin, Empty, Menu, Breadcrumb, Input } from 'antd';
+import { HomeOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useSearchParams, Link } from 'react-router-dom';
 import ProductCard from '../../components/ProductCard';
 import { shopProductService } from '../../services/shopProductService';
@@ -8,13 +9,16 @@ import { shopCategoryService } from '../../services/shopCategoryService';
 import '../../styles/customer.css';
 
 const { Option } = Select;
+const { Search } = Input; // Component Search của Ant Design
 
 const ProductListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
+  // Đọc các tham số từ URL
   const urlPage = parseInt(searchParams.get('page')) || 1;
   const urlCategory = searchParams.get('categoryId') || searchParams.get('category_id') || null;
   const urlSort = searchParams.get('sort') || 'newest';
+  const urlKeyword = searchParams.get('keyword') || ''; 
 
   const [products, setProducts] = useState([]);
   const [menuItems, setMenuItems] = useState([]); 
@@ -22,7 +26,7 @@ const ProductListPage = () => {
   const [total, setTotal] = useState(0);
   const [pageSize] = useState(12);
 
-  // 1. Tải toàn bộ Danh mục và xây dựng Menu phân cấp
+  // 1. Tải danh mục
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -36,20 +40,12 @@ const ProductListPage = () => {
           { key: 'all', icon: <AppstoreOutlined />, label: 'Tất cả sản phẩm' },
           ...parentCategories.map(parent => {
             const pId = parent.id || parent.categoryId || parent.category_id;
-            
-            const childrenFromFlat = catList.filter(c => {
-              const childPId = c.parentId || c.parent_id;
-              return childPId != null && childPId === pId;
-            });
-            const existingChildren = parent.children || parent.subCategories || [];
-            const subCats = existingChildren.length > 0 ? existingChildren : childrenFromFlat;
+            const childrenFromFlat = catList.filter(c => (c.parentId || c.parent_id) === pId);
+            const subCats = (parent.children || parent.subCategories || []).length > 0 
+                            ? (parent.children || parent.subCategories) 
+                            : childrenFromFlat;
 
-            const item = {
-              key: String(pId),
-              label: parent.name
-            };
-
-            // FIX: Đã bỏ phần "Tất cả...". Chỉ map đúng danh mục con.
+            const item = { key: String(pId), label: parent.name };
             if (subCats && subCats.length > 0) {
               item.children = subCats.map(sub => ({
                 key: String(sub.id || sub.categoryId || sub.category_id),
@@ -59,7 +55,6 @@ const ProductListPage = () => {
             return item;
           })
         ];
-
         setMenuItems(builtMenuItems);
       } catch (error) {
         console.error("Lỗi tải danh mục:", error);
@@ -68,7 +63,7 @@ const ProductListPage = () => {
     fetchCategories();
   }, []);
 
-  // 2. Tải danh sách Sản phẩm mỗi khi tham số URL thay đổi
+  // 2. Tải danh sách Sản phẩm theo các tham số
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
@@ -81,9 +76,13 @@ const ProductListPage = () => {
         page: urlPage - 1, 
         size: pageSize,
         categoryId: urlCategory, 
-        category_id: urlCategory, 
         sort: sortParam
       };
+
+      // Đưa keyword vào payload gọi API
+      if (urlKeyword) {
+        params.keyword = urlKeyword;
+      }
 
       const res = await shopProductService.getAll(params);
       
@@ -94,13 +93,23 @@ const ProductListPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [urlPage, urlCategory, urlSort, pageSize]);
+  }, [urlPage, urlCategory, urlSort, urlKeyword, pageSize]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // 3. Xử lý các sự kiện thay đổi
+  // 3. Xử lý sự kiện Tìm kiếm
+  const handleSearch = (value) => {
+    if (value && value.trim() !== '') {
+      searchParams.set('keyword', value.trim());
+    } else {
+      searchParams.delete('keyword'); // Xóa search nếu để trống
+    }
+    searchParams.set('page', 1); // Đổi keyword thì quay về trang 1
+    setSearchParams(searchParams);
+  };
+
   const handlePageChange = (page) => {
     searchParams.set('page', page);
     setSearchParams(searchParams);
@@ -113,7 +122,6 @@ const ProductListPage = () => {
       searchParams.delete('category_id');
     } else {
       searchParams.set('categoryId', key);
-      searchParams.delete('category_id'); 
     }
     searchParams.set('page', 1);
     setSearchParams(searchParams);
@@ -125,7 +133,6 @@ const ProductListPage = () => {
     setSearchParams(searchParams);
   };
 
-  // Logic tự động mở Menu Cha nếu URL đang trỏ vào Menu
   const findParentKey = (childKey) => {
     for (const item of menuItems) {
       if (item.children) {
@@ -136,14 +143,13 @@ const ProductListPage = () => {
     return null;
   };
 
-  // Mở Menu cha tương ứng khi load lại trang
   const defaultOpenKeys = [];
   if (urlCategory) {
     const parentKey = findParentKey(urlCategory);
     if (parentKey) {
-      defaultOpenKeys.push(parentKey); // Nếu URL là con -> Mở cha
+      defaultOpenKeys.push(parentKey); 
     } else {
-      defaultOpenKeys.push(urlCategory); // Nếu URL chính là cha -> Mở chính nó
+      defaultOpenKeys.push(urlCategory); 
     }
   }
 
@@ -168,7 +174,6 @@ const ProductListPage = () => {
                 selectedKeys={[urlCategory || 'all']}
                 defaultOpenKeys={defaultOpenKeys}
                 onClick={handleCategorySelect}
-                // FIX: Bổ sung onTitleClick cho các Menu Cha
                 items={menuItems.map(item => (
                   item.children 
                     ? { ...item, onTitleClick: handleCategorySelect } 
@@ -180,15 +185,31 @@ const ProductListPage = () => {
           </Col>
 
           <Col xs={24} lg={18}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, background: '#fff', padding: '16px 20px', borderRadius: 12 }}>
-              <span style={{ color: '#64748b' }}>Hiển thị <strong>{products.length}</strong> trên tổng số <strong>{total}</strong> sản phẩm</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontWeight: 500 }}>Sắp xếp theo:</span>
-                <Select value={urlSort} onChange={handleSortChange} style={{ width: 180 }}>
-                  <Option value="newest">Mới nhất</Option>
-                  <Option value="price_asc">Giá: Thấp đến Cao</Option>
-                  <Option value="price_desc">Giá: Cao xuống Thấp</Option>
-                </Select>
+            {/* THANH CÔNG CỤ: TÌM KIẾM VÀ SẮP XẾP NẰM Ở ĐÂY */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 24, background: '#fff', padding: '16px 20px', borderRadius: 12 }}>
+              <span style={{ color: '#64748b' }}>
+                Hiển thị <strong>{products.length}</strong> trên tổng số <strong>{total}</strong> sản phẩm
+              </span>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                {/* Ô NHẬP TỪ KHÓA TÌM KIẾM */}
+                <Search
+                  placeholder="Nhập tên sản phẩm..."
+                  allowClear
+                  defaultValue={urlKeyword}
+                  onSearch={handleSearch}
+                  style={{ width: 250 }}
+                  enterButton
+                />
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontWeight: 500 }}>Sắp xếp:</span>
+                  <Select value={urlSort} onChange={handleSortChange} style={{ width: 180 }}>
+                    <Option value="newest">Mới nhất</Option>
+                    <Option value="price_asc">Giá: Thấp đến Cao</Option>
+                    <Option value="price_desc">Giá: Cao xuống Thấp</Option>
+                  </Select>
+                </div>
               </div>
             </div>
 
@@ -216,7 +237,7 @@ const ProductListPage = () => {
               </>
             ) : (
               <div style={{ background: '#fff', padding: '60px 0', borderRadius: 12 }}>
-                <Empty description="Không tìm thấy sản phẩm nào trong danh mục này." />
+                <Empty description="Không tìm thấy sản phẩm nào phù hợp." />
               </div>
             )}
           </Col>
