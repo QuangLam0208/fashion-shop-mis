@@ -23,7 +23,7 @@ const Navbar = () => {
       key: 'profile',
       label: 'Tài khoản của tôi',
       icon: <UserOutlined />,
-      onClick: () => navigate('/profile')
+      onClick: () => navigate('/account/profile')
     },
     {
       key: 'orders',
