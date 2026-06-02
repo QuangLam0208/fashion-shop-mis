@@ -9,12 +9,33 @@ import { shopCategoryService } from '../../services/shopCategoryService';
 import '../../styles/customer.css';
 
 const { Option } = Select;
-const { Search } = Input; // Component Search của Ant Design
+const { Search } = Input;
 
 const ProductListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Đọc các tham số từ URL
+  // 1. TỰ ĐỘNG CHUẨN HÓA URL (THÊM page=1 & sort=newest NẾU CHƯA CÓ)
+  useEffect(() => {
+    let changed = false;
+    const currentParams = new URLSearchParams(searchParams);
+
+    if (!currentParams.has('page')) {
+      currentParams.set('page', '1');
+      changed = true;
+    }
+    if (!currentParams.has('sort')) {
+      currentParams.set('sort', 'newest');
+      changed = true;
+    }
+
+    // Nếu URL thiếu param, tự động thêm vào bằng 'replace' để không tạo rác lịch sử trình duyệt
+    if (changed) {
+      setSearchParams(currentParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 2. Đọc các tham số từ URL (sau khi đã chuẩn hóa)
   const urlPage = parseInt(searchParams.get('page')) || 1;
   const urlCategory = searchParams.get('categoryId') || searchParams.get('category_id') || null;
   const urlSort = searchParams.get('sort') || 'newest';
@@ -26,7 +47,7 @@ const ProductListPage = () => {
   const [total, setTotal] = useState(0);
   const [pageSize] = useState(12);
 
-  // 1. Tải danh mục
+  // 3. Tải danh mục cho Sidebar
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -63,14 +84,14 @@ const ProductListPage = () => {
     fetchCategories();
   }, []);
 
-  // 2. Tải danh sách Sản phẩm theo các tham số
+  // 4. Tải danh sách Sản phẩm theo Param
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
       let sortParam = '';
       if (urlSort === 'price_asc') sortParam = 'price,asc';
-      if (urlSort === 'price_desc') sortParam = 'price,desc';
-      if (urlSort === 'newest') sortParam = 'productId,desc'; 
+      else if (urlSort === 'price_desc') sortParam = 'price,desc';
+      else if (urlSort === 'newest') sortParam = 'id,desc'; 
 
       const params = {
         page: urlPage - 1, 
@@ -79,7 +100,6 @@ const ProductListPage = () => {
         sort: sortParam
       };
 
-      // Đưa keyword vào payload gọi API
       if (urlKeyword) {
         params.keyword = urlKeyword;
       }
@@ -99,14 +119,14 @@ const ProductListPage = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // 3. Xử lý sự kiện Tìm kiếm
+  // 5. Xử lý các sự kiện thay đổi Param URL
   const handleSearch = (value) => {
     if (value && value.trim() !== '') {
       searchParams.set('keyword', value.trim());
     } else {
-      searchParams.delete('keyword'); // Xóa search nếu để trống
+      searchParams.delete('keyword'); 
     }
-    searchParams.set('page', 1); // Đổi keyword thì quay về trang 1
+    searchParams.set('page', 1); 
     setSearchParams(searchParams);
   };
 
@@ -185,14 +205,12 @@ const ProductListPage = () => {
           </Col>
 
           <Col xs={24} lg={18}>
-            {/* THANH CÔNG CỤ: TÌM KIẾM VÀ SẮP XẾP NẰM Ở ĐÂY */}
             <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 24, background: '#fff', padding: '16px 20px', borderRadius: 12 }}>
               <span style={{ color: '#64748b' }}>
                 Hiển thị <strong>{products.length}</strong> trên tổng số <strong>{total}</strong> sản phẩm
               </span>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                {/* Ô NHẬP TỪ KHÓA TÌM KIẾM */}
                 <Search
                   placeholder="Nhập tên sản phẩm..."
                   allowClear
@@ -219,7 +237,7 @@ const ProductListPage = () => {
               <>
                 <Row gutter={[24, 24]}>
                   {products.map(product => (
-                    <Col xs={12} sm={12} md={8} xl={6} key={product.productId || product.product_id}>
+                    <Col xs={12} sm={12} md={8} xl={6} key={product.productId || product.id}>
                       <ProductCard product={product} />
                     </Col>
                   ))}
