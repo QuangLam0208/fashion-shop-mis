@@ -25,6 +25,28 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findFiltered(@Param("keyword") String keyword, @Param("categoryIds") List<Long> categoryIds,
                                @Param("hasCategory") boolean hasCategory, Pageable pageable);
 
+    @Query("SELECT p FROM Product p " +
+            "LEFT JOIN p.category c " +
+            "LEFT JOIN p.variants v " +
+            "WHERE (:keyword IS NULL OR :keyword = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "AND (:hasCategory = false OR c.id IN :categoryIds) " +
+            "AND p.status = 'ACTIVE' " +
+            "GROUP BY p.id, c.id " + // Cần group by để dùng hàm aggregate MIN
+            "ORDER BY MIN(v.price) ASC")
+    Page<Product> findFilteredOrderByPriceAsc(@Param("keyword") String keyword, @Param("categoryIds") List<Long> categoryIds,
+                                              @Param("hasCategory") boolean hasCategory, Pageable pageable);
+
+    @Query("SELECT p FROM Product p " +
+            "LEFT JOIN p.category c " +
+            "LEFT JOIN p.variants v " +
+            "WHERE (:keyword IS NULL OR :keyword = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "AND (:hasCategory = false OR c.id IN :categoryIds) " +
+            "AND p.status = 'ACTIVE' " +
+            "GROUP BY p.id, c.id " +
+            "ORDER BY MIN(v.price) DESC") // Hoặc MAX(v.price) DESC tùy nghiệp vụ của bạn
+    Page<Product> findFilteredOrderByPriceDesc(@Param("keyword") String keyword, @Param("categoryIds") List<Long> categoryIds,
+                                               @Param("hasCategory") boolean hasCategory, Pageable pageable);
+
     // Tìm sản phẩm theo danh sách category IDs (bao gồm danh mục cha + con)
     @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.images i WHERE p.category.id IN :categoryIds AND p.status = 'ACTIVE'")
     Page<Product> findByCategoryIds(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);

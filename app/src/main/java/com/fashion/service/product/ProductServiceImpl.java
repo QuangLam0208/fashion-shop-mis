@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,20 +67,31 @@ public class ProductServiceImpl implements ProductService {
         List<Long> categoryIds = new ArrayList<>();
         boolean hasCategory = false;
 
-        // Nếu người dùng có truyền categoryId, lấy danh sách ID của nó và toàn bộ con cháu
         if (categoryId != null) {
             categoryIds = getDescendantIds(categoryId);
             hasCategory = true;
         } else {
-            // Truyền 1 phần tử ảo để tránh lỗi cú pháp "IN ()" của SQL khi list rỗng
             categoryIds.add(-1L);
         }
 
-        Page<Product> productsPage = productRepository.findFiltered(
-                (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null,
-                categoryIds,
-                hasCategory,
-                pageable);
+        String searchKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        Page<Product> productsPage;
+        Sort sort = pageable.getSort();
+        Sort.Order priceOrder = sort.getOrderFor("price");
+
+        if (priceOrder != null) {
+            // Tạo một Pageable mới KHÔNG CHỨA SORT để tránh Spring tự sinh SQL lỗi
+            Pageable pageableWithoutSort = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+
+            if (priceOrder.isAscending()) {
+                productsPage = productRepository.findFilteredOrderByPriceAsc(searchKeyword, categoryIds, hasCategory, pageableWithoutSort);
+            } else {
+                productsPage = productRepository.findFilteredOrderByPriceDesc(searchKeyword, categoryIds, hasCategory, pageableWithoutSort);
+            }
+        } else {
+            // Nếu sort theo ID (mới nhất/cũ nhất), chạy hàm findFiltered mặc định ban đầu của bạn
+            productsPage = productRepository.findFiltered(searchKeyword, categoryIds, hasCategory, pageable);
+        }
 
         // Map Entity sang DTO
         return productsPage.map(product -> ProductSummaryResponseDTO.builder()
