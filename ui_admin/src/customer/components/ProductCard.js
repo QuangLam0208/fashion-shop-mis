@@ -47,15 +47,15 @@ const ProductCard = ({ product, showActions = true, initialWishlisted, onWishlis
     try {
       let newStatus = false;
       if (toggleWishlist) {
-        newStatus = await toggleWishlist(productId); // Gửi API qua Context
+        newStatus = await toggleWishlist(productId); 
       }
-      message.success(newStatus ? 'Đã thêm vào yêu thích' : 'Đã xoá khỏi yêu thích');
+      message.success(newStatus ? 'Đã thêm sản phẩm vào mục yêu thích.' : 'Đã xóa sản phẩm khỏi mục yêu thích.');
       
       if (onWishlistChange) {
         onWishlistChange(productId, newStatus);
       }
-    } catch {
-      message.error('Lỗi khi thao tác yêu thích');
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Lỗi khi thao tác yêu thích');
     }
   };
 
