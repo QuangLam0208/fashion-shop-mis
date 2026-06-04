@@ -2,6 +2,7 @@ package com.fashion.service.cart;
 
 import com.fashion.dto.request.AddToCartRequestDTO;
 import com.fashion.dto.response.CartItemResponseDTO;
+import com.fashion.dto.response.CartResponseDTO;
 import com.fashion.model.*;
 import com.fashion.repository.CartItemRepository;
 import com.fashion.repository.ProductVariantRepository;
@@ -179,5 +180,100 @@ class CartServiceImplTest {
         assertNotNull(response);
         // Vì màu "Đỏ" không có ảnh tương ứng -> Hệ thống phải fallback lấy ảnh đầu tiên trong list là "anh-xanh.png"
         assertEquals("anh-xanh.png", response.getPrimaryImageUrl(), "Hệ thống phải fallback về ảnh đầu tiên khi không khớp màu");
+    }
+    // 1. Return items mapped correctly (Assert item DTO fields mapped đúng)
+    @Test
+    void getCartItems_ReturnsItemsMappedCorrectly() {
+        // Arrange
+        Product product = Product.builder().id(200L).name("Áo Sơ Mi").images(new ArrayList<>()).build();
+        ProductVariant variant1 = ProductVariant.builder().id(11L).product(product).size("L").color("Trắng").price(100000.0).build();
+        CartItem cartItem1 = CartItem.builder().id(1L).user(mockUser).productVariant(variant1).quantity(2).build();
+
+        when(cartItemRepository.findByUser_Id(1L)).thenReturn(List.of(cartItem1));
+
+        // Act
+        CartResponseDTO response = cartService.getCartItems(1L);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(1, response.getItems().size());
+
+        CartItemResponseDTO itemDTO = response.getItems().get(0);
+        assertEquals(1L, itemDTO.getCartItemId());
+        assertEquals(11L, itemDTO.getVariantId());
+        assertEquals(200L, itemDTO.getProductId());
+        assertEquals("Áo Sơ Mi", itemDTO.getProductName());
+        assertEquals("L", itemDTO.getSize());
+        assertEquals("Trắng", itemDTO.getColor());
+        assertEquals(100000.0, itemDTO.getPrice());
+        assertEquals(2, itemDTO.getQuantity());
+    }
+
+    // 2. Total amount correct (ví dụ: price=100k*2 + price=50k*1 = 250k)
+    @Test
+    void getCartItems_CalculatesTotalAmountCorrectly() {
+        // Arrange
+        Product product = Product.builder().id(200L).name("Test Product").images(new ArrayList<>()).build();
+
+        ProductVariant variant1 = ProductVariant.builder().id(11L).product(product).price(100.0).build();
+        CartItem cartItem1 = CartItem.builder().id(1L).user(mockUser).productVariant(variant1).quantity(2).build(); // 100 * 2 = 200
+
+        ProductVariant variant2 = ProductVariant.builder().id(12L).product(product).price(50.0).build();
+        CartItem cartItem2 = CartItem.builder().id(2L).user(mockUser).productVariant(variant2).quantity(1).build(); // 50 * 1 = 50
+
+        when(cartItemRepository.findByUser_Id(1L)).thenReturn(List.of(cartItem1, cartItem2));
+
+        // Act
+        CartResponseDTO response = cartService.getCartItems(1L);
+
+        // Assert
+        assertEquals(250.0, response.getTotalAmount(), "Tổng tiền phải bằng chính xác 250 (100*2 + 50*1)");
+    }
+
+    // 3. Empty cart returns empty list + 0 total
+    @Test
+    void getCartItems_EmptyCart_ReturnsEmptyListAndZeroTotal() {
+        // Arrange
+        when(cartItemRepository.findByUser_Id(1L)).thenReturn(new ArrayList<>());
+
+        // Act
+        CartResponseDTO response = cartService.getCartItems(1L);
+
+        // Assert
+        assertNotNull(response);
+        assertTrue(response.getItems().isEmpty(), "Danh sách item phải rỗng");
+        assertEquals(0.0, response.getTotalAmount(), "Tổng tiền của giỏ hàng rỗng phải là 0");
+    }
+
+    // 4. Image mapping logic (Match color, fallback, null)
+    @Test
+    void getCartItems_ImageMappingLogic() {
+        // Arrange
+        Product product = Product.builder().id(300L).name("Quần Jean").images(new ArrayList<>()).build();
+        product.getImages().add(ProductImage.builder().id(1L).url("img-xanh.jpg").color("Xanh").build());
+        product.getImages().add(ProductImage.builder().id(2L).url("img-den.jpg").color("Đen").build());
+
+        // Case 1: Khớp màu "Đen" -> Lấy "img-den.jpg"
+        ProductVariant variantDen = ProductVariant.builder().id(21L).product(product).color("Đen").price(0.0).build();
+        CartItem itemMatch = CartItem.builder().id(1L).user(mockUser).productVariant(variantDen).quantity(1).build();
+
+        // Case 2: Không khớp màu ("Đỏ") -> Fallback lấy ảnh đầu tiên "img-xanh.jpg"
+        ProductVariant variantDo = ProductVariant.builder().id(22L).product(product).color("Đỏ").price(0.0).build();
+        CartItem itemFallback = CartItem.builder().id(2L).user(mockUser).productVariant(variantDo).quantity(1).build();
+
+        // Case 3: Product không có ảnh -> null
+        Product productNoImage = Product.builder().id(301L).name("Phụ kiện").images(new ArrayList<>()).build();
+        ProductVariant variantNoImg = ProductVariant.builder().id(23L).product(productNoImage).color("Vàng").price(0.0).build();
+        CartItem itemNullImg = CartItem.builder().id(3L).user(mockUser).productVariant(variantNoImg).quantity(1).build();
+
+        when(cartItemRepository.findByUser_Id(1L)).thenReturn(List.of(itemMatch, itemFallback, itemNullImg));
+
+        // Act
+        CartResponseDTO response = cartService.getCartItems(1L);
+
+        // Assert
+        assertEquals("img-den.jpg", response.getItems().get(0).getPrimaryImageUrl(), "Phải chọn ảnh khớp màu Đen");
+        assertEquals("img-xanh.jpg", response.getItems().get(1).getPrimaryImageUrl(), "Phải fallback về ảnh đầu tiên khi không có màu Đỏ");
+        assertNull(response.getItems().get(2).getPrimaryImageUrl(), "Phải trả về null nếu sản phẩm không có ảnh nào");
     }
 }
