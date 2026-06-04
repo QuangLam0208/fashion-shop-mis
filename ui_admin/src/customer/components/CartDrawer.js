@@ -138,8 +138,14 @@ const CartDrawer = ({ open, onClose }) => {
                           size="small"
                           value={item.quantity}
                           onChange={(val) => {
-                            if (val && val !== item.quantity) {
+                            if (val !== null && val !== undefined && val >= 1 && val !== item.quantity) {
                               updateQuantity(currentItemId, val);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (isNaN(val) || val < 1) {
+                              updateQuantity(currentItemId, 1);
                             }
                           }}
                           style={{ width: 64, borderRadius: 4 }}
