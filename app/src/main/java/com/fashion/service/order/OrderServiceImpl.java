@@ -275,8 +275,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<OrderItemSummaryDTO> getMyOrderItems(Long userId, List<OrderStatus> statuses, Boolean reviewed,
-            Pageable pageable) {
+    public Page<OrderItemSummaryDTO> getMyOrderItems(Long userId, List<OrderStatus> statuses, Boolean reviewed, Pageable pageable) {
         Page<OrderItem> items;
 
         if (Boolean.TRUE.equals(reviewed)) {
