@@ -5,6 +5,8 @@ import com.fashion.dto.request.UpdateCartItemRequestDTO;
 import com.fashion.dto.response.CartItemResponseDTO;
 import com.fashion.dto.response.CartResponseDTO;
 import com.fashion.dto.response.MessageResponseDTO;
+import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.*;
 import com.fashion.repository.CartItemRepository;
 import com.fashion.repository.ProductVariantRepository;
@@ -56,11 +58,11 @@ public class CartServiceImpl implements CartService {
         }
 
         ProductVariant variant = productVariantRepository.findById(dto.getVariantId())
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại!"));
 
         // Kiểm tra tồn kho
         if (variant.getStockQuantity() < dto.getQuantity()) {
-            throw new RuntimeException("Sản phẩm không đủ số lượng trong kho!");
+            throw new BadRequestException("Sản phẩm không đủ số lượng trong kho!");
         }
 
         // Kiểm tra sản phẩm đã tồn tại trong giỏ hàng chưa
