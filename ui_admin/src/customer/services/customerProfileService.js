@@ -11,7 +11,7 @@ export const customerProfileService = {
     return res.data;
   },
   changePassword: async (data) => {
-    const res = await axiosInstance.put('/api/users/me/password', data);
+    const res = await axiosInstance.post('/api/users/me/password', data);
     return res.data;
   },
   deleteAccount: async () => {

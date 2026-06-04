@@ -194,7 +194,7 @@ const ProductDetailPage = () => {
                     size="large" block 
                     icon={<ShoppingCartOutlined />} 
                     onClick={handleAddToCart}
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || (product.variants?.length > 0 && !selectedVariant)}
                     style={{ height: 54, borderRadius: 8, border: '1px solid #1677ff', color: '#1677ff', fontWeight: 600 }}
                   >
                     Thêm vào giỏ hàng
@@ -205,7 +205,7 @@ const ProductDetailPage = () => {
                     type="primary" size="large" block 
                     icon={<CreditCardOutlined />}
                     onClick={handleBuyNow}
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || (product.variants?.length > 0 && !selectedVariant)}
                     style={{ height: 54, borderRadius: 8, background: '#e53935', borderColor: '#e53935', fontWeight: 600 }}
                   >
                     {isOutOfStock ? 'Hết hàng' : 'Mua ngay'}

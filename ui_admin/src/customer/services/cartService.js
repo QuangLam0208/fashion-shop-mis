@@ -11,9 +11,8 @@ export const cartService = {
   /** Thêm sản phẩm vào giỏ 
    * Body: { "productId": number, "quantity": number }
    */
-  addItem: async ({ productId, variantId, quantity = 1 }) => {
+  addItem: async ({ variantId, quantity = 1 }) => {
     const res = await axiosInstance.post(API_ENDPOINTS.CUSTOMER.CART_CREATE, {
-      productId, 
       variantId,
       quantity,
     });
