@@ -1,7 +1,6 @@
-// src/customer/context/CartContext.js
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { cartService } from '../services/cartService';
-import useCustomerAuth from '../hooks/useCustomerAuth'; // SỬA LỖI IMPORT TẠI ĐÂY (Bỏ ngoặc nhọn {})
+import useCustomerAuth from '../hooks/useCustomerAuth';
 import { message } from 'antd';
 
 export const CartContext = createContext(null);
@@ -9,6 +8,7 @@ export const CartContext = createContext(null);
 export const CartProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [totalPrice, setTotalPrice] = useState(0);
   
   // Lấy trạng thái đăng nhập từ Hook
   const { isAuthenticated } = useCustomerAuth() || {}; 
@@ -16,15 +16,27 @@ export const CartProvider = ({ children }) => {
   // 1. HÀM TẢI GIỎ HÀNG TỪ SERVER BACKEND
   const loadCart = useCallback(async () => {
     if (!isAuthenticated) {
-      setItems([]); 
+      setItems([]);
+      setTotalPrice(0);
       return;
     }
     setLoading(true);
     try {
       const data = await cartService.getCart();
+      
+      // Lấy danh sách items
       setItems(Array.isArray(data) ? data : (data?.content || data?.items || []));
+      
+      // SỬA LỖI 1: Lấy trực tiếp totalAmount từ Backend thay vì tự tính
+      if (data && data.totalAmount !== undefined) {
+         setTotalPrice(data.totalAmount);
+      } else {
+         // Fallback nếu backend chưa trả totalAmount thì mới tự tính
+         const fallbackItems = Array.isArray(data) ? data : (data?.content || data?.items || []);
+         setTotalPrice(fallbackItems.reduce((s, i) => s + ((i.price || 0) * (i.quantity || 0)), 0));
+      }
     } catch (error) {
-      console.error("Lỗi khi đồng bộ giỏ hàng từ API:", error);
+      message.error("Lỗi tải giỏ hàng: " + (error?.response?.data?.message || 'Vui lòng thử lại!'));
     } finally {
       setLoading(false);
     }
@@ -36,7 +48,6 @@ export const CartProvider = ({ children }) => {
 
   // 2. TỰ ĐỘNG TÍNH TOÁN TỔNG SỐ LƯỢNG VÀ TỔNG TIỀN
   const totalItems = items.reduce((s, i) => s + (i.quantity || 0), 0);
-  const totalPrice = items.reduce((s, i) => s + ((i.price || 0) * (i.quantity || 0)), 0);
 
   // 3. HÀM THÊM SẢN PHẨM VÀO GIỎ HÀNG 
   const addItem = useCallback(async (productProps) => {
@@ -72,7 +83,8 @@ export const CartProvider = ({ children }) => {
       await cartService.updateQuantity(cartItemId, quantity);
       await loadCart(); 
     } catch (error) {
-      message.error('Cập nhật số lượng thất bại');
+      const errorMsg = error?.response?.data?.message || 'Cập nhật số lượng thất bại';
+      message.error(errorMsg);
     }
   }, [loadCart]);
 

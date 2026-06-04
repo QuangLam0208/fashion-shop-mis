@@ -71,10 +71,16 @@ const ProductDetailPage = () => {
       return;
     }
 
+    const finalQuantity = quantity || 1;
+
+    if (finalQuantity > displayStock) {
+      message.error(`Số lượng vượt quá tồn kho! Phân loại này chỉ còn ${displayStock} sản phẩm.`);
+      return;
+    }
+
     addItem({
-      productId: product.productId,
       variantId: selectedVariant?.variantId,
-      quantity: quantity
+      quantity: finalQuantity
     });
   };
 
@@ -178,10 +184,14 @@ const ProductDetailPage = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
                 <div style={{ fontWeight: 600 }}>Số lượng:</div>
                 <InputNumber 
-                  min={1} 
-                  max={displayStock > 0 ? displayStock : 1} 
+                  min={1}
                   value={quantity} 
                   onChange={(val) => setQuantity(val)}
+                  onBlur={() => {
+                    if (!quantity || quantity < 1) {
+                      setQuantity(1);
+                    }
+                  }}
                   size="large"
                   disabled={isOutOfStock}
                 />
