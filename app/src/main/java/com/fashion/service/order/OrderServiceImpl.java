@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.fashion.exception.BadRequestException;
 
 @Service
 @RequiredArgsConstructor
@@ -49,8 +50,14 @@ public class OrderServiceImpl implements OrderService {
 
         // 1. Lấy danh sách sản phẩm trong giỏ hàng
         List<CartItem> cartItems = cartItemRepository.findAllById(dto.getCartItemIds());
-        if (cartItems.isEmpty()) {
-            throw new RuntimeException("Giỏ hàng rỗng hoặc các mục đã bị xóa!");
+
+        if (cartItems.isEmpty() || cartItems.size() != dto.getCartItemIds().size()) {
+            throw new BadRequestException("Giỏ hàng rỗng hoặc các mục đã bị xóa!");
+        }
+        for (CartItem item : cartItems) {
+            if (!item.getUser().getId().equals(user.getId())) {
+                throw new BadRequestException("Bạn không có quyền thanh toán các mặt hàng trong giỏ hàng này!");
+            }
         }
 
         // 2. Tính tổng tiền & Xác thực tồn kho
@@ -268,8 +275,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<OrderItemSummaryDTO> getMyOrderItems(Long userId, List<OrderStatus> statuses, Boolean reviewed,
-                                                     Pageable pageable) {
+    public Page<OrderItemSummaryDTO> getMyOrderItems(Long userId, List<OrderStatus> statuses, Boolean reviewed, Pageable pageable) {
         Page<OrderItem> items;
 
         if (Boolean.TRUE.equals(reviewed)) {
