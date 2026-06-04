@@ -45,21 +45,15 @@ export const CartProvider = ({ children }) => {
       return;
     }
     try {
-      const productId = productProps.productId ?? productProps.product_id ?? productProps.id;
       const variantId = productProps.variantId ?? productProps.variant_id;
       const quantity = productProps.quantity ?? 1;
-
-      if (!productId) {
-        message.error("Lỗi: Không tìm thấy ID sản phẩm");
-        return;
-      }
       
       if (!variantId) {
         message.warning("Vui lòng chọn phân loại (Size/Màu) trước khi thêm!");
         return;
       }
 
-      await cartService.addItem({ productId, variantId, quantity });
+      await cartService.addItem({ variantId, quantity });
       
       message.success('Đã thêm sản phẩm vào giỏ hàng thành công 🛒');
       await loadCart(); 
