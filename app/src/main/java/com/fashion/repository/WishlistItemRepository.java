@@ -14,4 +14,6 @@ public interface WishlistItemRepository extends JpaRepository<WishlistItem, Long
 
     // Kiểm tra khách đã từng yêu thích món này chưa (để Thêm/Bỏ tim)
     Optional<WishlistItem> findByUserIdAndProductId(Long userId, Long productId);
+
+    List<WishlistItem> findWishlistItemByIdInAndUserId(List<Long> wishlists, long userId);
 }

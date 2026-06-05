@@ -9,5 +9,5 @@ public interface WishlistService {
     // Quản lý mục yêu thích
     List<WishlistItemResponseDTO> getWishlist(Long userId);
     WishlistToggleResponseDTO toggleWishlist(Long userId, Long productId);
-    void removeWishlistItem(Long userId, Long wishlistItemId);
+    void removeWishlistItems(Long userId, List<Long> wishlistItemId);
 }
