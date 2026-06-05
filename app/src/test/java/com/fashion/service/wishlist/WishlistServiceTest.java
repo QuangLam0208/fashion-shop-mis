@@ -153,4 +153,105 @@ class WishlistServiceTest {
         assertEquals(1, result.size());
         assertEquals("Áo thun Premium", result.get(0).getProductName());
     }
+
+    @Test
+    void getWishlist_MappingCorrectFieldValues_Success() {
+        // Given: Tạo một sản phẩm có đầy đủ thông tin, biến thể và hình ảnh
+        Product product = Product.builder()
+                .id(100L)
+                .name("Áo Hoodie Streetwear")
+                .status(ProductStatus.ACTIVE) // ACTIVE -> inStock = true
+                .category(com.fashion.model.Category.builder().name("Áo Nam").build())
+                .variants(List.of(com.fashion.model.ProductVariant.builder().price(350000.0).build()))
+                .images(List.of(com.fashion.model.ProductImage.builder().url("https://image.com/hoodie.png").build()))
+                .build();
+
+        WishlistItem item = WishlistItem.builder().id(10L).user(mockUser).product(product).build();
+        when(wishlistItemRepository.findByUserId(mockUserId)).thenReturn(List.of(item));
+
+        // When: Gọi hàm xử lý lấy danh sách
+        List<WishlistItemResponseDTO> result = wishlistService.getWishlist(mockUserId);
+
+        // Then: Khẳng định các giá trị fields được mapping chính xác từng chút một
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        WishlistItemResponseDTO dto = result.get(0);
+        assertEquals(10L, dto.getWishlistItemId());
+        assertEquals(100L, dto.getProductId());
+        assertEquals("Áo Hoodie Streetwear", dto.getProductName());
+        assertEquals(350000.0, dto.getProductPrice());
+        assertEquals("Áo Nam", dto.getCategoryName());
+        assertTrue(dto.getInStock()); // Do trạng thái là ACTIVE
+        assertEquals("https://image.com/hoodie.png", dto.getPrimaryImageUrl());
+    }
+
+    @Test
+    void getWishlist_InStockFalse_WhenProductStatusIsNotActive() {
+        // Given: Sản phẩm có trạng thái KHÁC ACTIVE (ví dụ: INACTIVE hoặc OUT_OF_STOCK)
+        Product product = Product.builder()
+                .id(101L)
+                .name("Quần Short Jean")
+                .status(ProductStatus.INACTIVE) // Không phải ACTIVE -> inStock phải ra false
+                .variants(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        WishlistItem item = WishlistItem.builder().id(11L).user(mockUser).product(product).build();
+        when(wishlistItemRepository.findByUserId(mockUserId)).thenReturn(List.of(item));
+
+        // When
+        List<WishlistItemResponseDTO> result = wishlistService.getWishlist(mockUserId);
+
+        // Then
+        assertFalse(result.isEmpty());
+        assertFalse(result.get(0).getInStock()); // Khẳng định inStock = false
+    }
+
+    @Test
+    void getWishlist_CategoryNameFallbackWorks_WhenCategoryIsNull() {
+        // Given: Sản phẩm không được gán danh mục (category = null)
+        Product product = Product.builder()
+                .id(102L)
+                .name("Phụ kiện vòng tay")
+                .status(ProductStatus.ACTIVE)
+                .category(null) // Không có danh mục
+                .variants(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        WishlistItem item = WishlistItem.builder().id(12L).user(mockUser).product(product).build();
+        when(wishlistItemRepository.findByUserId(mockUserId)).thenReturn(List.of(item));
+
+        // When
+        List<WishlistItemResponseDTO> result = wishlistService.getWishlist(mockUserId);
+
+        // Then
+        assertFalse(result.isEmpty());
+        // Khẳng định hệ thống tự động nhảy vào cụm fallback chữ "Uncategorized" như trong Service bạn viết
+        assertEquals("Uncategorized", result.get(0).getCategoryName());
+    }
+
+    @Test
+    void getWishlist_PrimaryImageUrlNull_WhenProductHasNoImages() {
+        // Given: Sản phẩm rỗng danh sách hình ảnh (images empty)
+        Product product = Product.builder()
+                .id(103L)
+                .name("Nón Bucket")
+                .status(ProductStatus.ACTIVE)
+                .variants(new ArrayList<>())
+                .images(new ArrayList<>()) // Mảng ảnh trống rỗng
+                .build();
+
+        WishlistItem item = WishlistItem.builder().id(13L).user(mockUser).product(product).build();
+        when(wishlistItemRepository.findByUserId(mockUserId)).thenReturn(List.of(item));
+
+        // When
+        List<WishlistItemResponseDTO> result = wishlistService.getWishlist(mockUserId);
+
+        // Then
+        assertFalse(result.isEmpty());
+        // Khẳng định ảnh đại diện trả về phải là null chứ không gây crash lỗi sập mảng index [0]
+        assertNull(result.get(0).getPrimaryImageUrl());
+    }
 }
