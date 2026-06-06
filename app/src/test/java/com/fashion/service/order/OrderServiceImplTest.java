@@ -11,6 +11,8 @@ import com.fashion.service.payment.MomoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -260,5 +262,162 @@ class OrderServiceImplTest {
         verify(cartItemRepository, never()).deleteAll(anyList());
         assertEquals(10L, mockVariant.getStockQuantity());
         verify(productVariantRepository, never()).save(any(ProductVariant.class));
+    }
+
+    // =========================================================================
+    // 5. AC-BE-US24-05 — Unit test verifies initialStatus logic for COD
+    // =========================================================================
+
+    /**
+     * AC-BE-US24-01: Khi paymentMethod = COD
+     * → order.status = PENDING_CONFIRMATION
+     * → mỗi orderItem.status = PENDING_CONFIRMATION
+     */
+    @Test
+    void placeOrder_COD_OrderAndItemStatus_ShouldBePendingConfirmation() {
+        // Arrange
+        PlaceOrderRequestDTO dto = PlaceOrderRequestDTO.builder()
+                .userId(1L)
+                .cartItemIds(List.of(1000L))
+                .shippingAddress("456 Nguyễn Huệ")
+                .paymentMethod(PaymentMethod.COD)
+                .couponCode(null)
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(cartItemRepository.findAllById(List.of(1000L))).thenReturn(List.of(mockCartItem));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(600L);
+            return o;
+        });
+
+        // Act
+        orderService.placeOrder(dto);
+
+        // Assert: Capture Order được lưu và verify status
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(orderCaptor.capture());
+        Order savedOrder = orderCaptor.getValue();
+        assertEquals(OrderStatus.PENDING_CONFIRMATION, savedOrder.getStatus(),
+                "AC-01: Order.status phải là PENDING_CONFIRMATION khi COD");
+
+        // Assert: Capture OrderItem được lưu và verify status
+        ArgumentCaptor<OrderItem> itemCaptor = ArgumentCaptor.forClass(OrderItem.class);
+        verify(orderItemRepository, atLeastOnce()).save(itemCaptor.capture());
+        List<OrderItem> savedItems = itemCaptor.getAllValues();
+        assertFalse(savedItems.isEmpty(), "Phải có ít nhất 1 OrderItem được lưu");
+        for (OrderItem item : savedItems) {
+            assertEquals(OrderStatus.PENDING_CONFIRMATION, item.getStatus(),
+                    "AC-01: OrderItem.status phải là PENDING_CONFIRMATION khi COD");
+        }
+    }
+
+    /**
+     * AC-BE-US24-02: Khi COD → response.paymentUrl = null
+     */
+    @Test
+    void placeOrder_COD_PaymentUrl_ShouldBeNull() {
+        // Arrange
+        PlaceOrderRequestDTO dto = PlaceOrderRequestDTO.builder()
+                .userId(1L)
+                .cartItemIds(List.of(1000L))
+                .shippingAddress("789 Trần Hưng Đạo")
+                .paymentMethod(PaymentMethod.COD)
+                .couponCode(null)
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(cartItemRepository.findAllById(List.of(1000L))).thenReturn(List.of(mockCartItem));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(601L);
+            return o;
+        });
+
+        // Act
+        PlaceOrderResponseDTO response = orderService.placeOrder(dto);
+
+        // Assert: paymentUrl phải null, MoMo không được gọi
+        assertNull(response.getPaymentUrl(),
+                "AC-02: paymentUrl phải là null khi COD");
+        verify(momoService, never()).createPaymentUrl(anyLong(), anyDouble());
+    }
+
+    /**
+     * AC-BE-US24-03: Khi COD → message chứa "chờ xác nhận"
+     */
+    @Test
+    void placeOrder_COD_Message_ShouldContainChoXacNhan() {
+        // Arrange
+        PlaceOrderRequestDTO dto = PlaceOrderRequestDTO.builder()
+                .userId(1L)
+                .cartItemIds(List.of(1000L))
+                .shippingAddress("101 Hai Bà Trưng")
+                .paymentMethod(PaymentMethod.COD)
+                .couponCode(null)
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(cartItemRepository.findAllById(List.of(1000L))).thenReturn(List.of(mockCartItem));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(602L);
+            return o;
+        });
+
+        // Act
+        PlaceOrderResponseDTO response = orderService.placeOrder(dto);
+
+        // Assert: message chứa "chờ xác nhận"
+        assertNotNull(response.getMessage(), "Message không được null");
+        assertTrue(response.getMessage().contains("chờ xác nhận"),
+                "AC-03: Message phải chứa 'chờ xác nhận', actual: " + response.getMessage());
+        assertTrue(response.getMessage().contains("Đặt hàng thành công"),
+                "AC-03: Message phải chứa 'Đặt hàng thành công', actual: " + response.getMessage());
+    }
+
+    /**
+     * AC-BE-US24-01 mở rộng: Khi MOMO → status phải là PENDING_PAYMENT (KHÔNG phải PENDING_CONFIRMATION)
+     * → Đảm bảo logic phân nhánh initialStatus hoạt động đúng cho cả 2 case.
+     */
+    @Test
+    void placeOrder_MOMO_Status_ShouldBePendingPayment_NotPendingConfirmation() {
+        // Arrange
+        PlaceOrderRequestDTO dto = PlaceOrderRequestDTO.builder()
+                .userId(1L)
+                .cartItemIds(List.of(1000L))
+                .shippingAddress("202 Võ Văn Tần")
+                .paymentMethod(PaymentMethod.MOMO)
+                .couponCode(null)
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(cartItemRepository.findAllById(List.of(1000L))).thenReturn(List.of(mockCartItem));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(603L);
+            return o;
+        });
+        when(momoService.createPaymentUrl(anyLong(), anyDouble())).thenReturn("https://momo.vn/pay/123");
+
+        // Act
+        PlaceOrderResponseDTO response = orderService.placeOrder(dto);
+
+        // Assert: status = PENDING_PAYMENT (khác COD)
+        assertEquals(OrderStatus.PENDING_PAYMENT, response.getStatus(),
+                "MOMO phải có status PENDING_PAYMENT");
+
+        // Assert: paymentUrl KHÔNG null (ngược lại COD)
+        assertNotNull(response.getPaymentUrl(),
+                "MOMO phải có paymentUrl");
+
+        // Assert: OrderItem cũng phải PENDING_PAYMENT
+        ArgumentCaptor<OrderItem> itemCaptor = ArgumentCaptor.forClass(OrderItem.class);
+        verify(orderItemRepository, atLeastOnce()).save(itemCaptor.capture());
+        for (OrderItem item : itemCaptor.getAllValues()) {
+            assertEquals(OrderStatus.PENDING_PAYMENT, item.getStatus(),
+                    "MOMO OrderItem.status phải là PENDING_PAYMENT");
+        }
     }
 }
