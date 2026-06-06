@@ -1,65 +1,34 @@
-import { API_ENDPOINTS } from '../../shared/config/apiConfig';
 import axiosInstance from '../../shared/config/axiosInstance';
 
-export const adminOrderService = {
-  /**
-   * Lấy danh sách đơn hàng
-   * GET /api/admin/orders
-   * params: { keyword, status, type, payment_method, page, limit, sort }
-   */
-  getAll: async (params = {}) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.ADMIN_ORDERS.GET_ALL, { params });
+export const orderService = {
+  /** Lấy danh sách đơn hàng (có phân trang, filter) */
+  getOrders: async (params) => {
+    // params: { status, startDate, endDate, page, size }
+    const res = await axiosInstance.get('/api/admin/orders/list', { params });
     return res.data;
   },
 
-  /**
-   * Chi tiết đơn hàng
-   * GET /api/admin/orders/:id
-   */
-  getById: async (id) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.ADMIN_ORDERS.GET_BY_ID(id));
+  /** Xem chi tiết đơn hàng */
+  getOrderDetail: async (orderId) => {
+    const res = await axiosInstance.get(`/api/admin/orders/${orderId}`);
     return res.data;
   },
 
-  /**
-   * Cập nhật trạng thái đơn hàng
-   * PUT /api/admin/orders/:id/status
-   * Body: { status }
-   */
-  updateStatus: async (id, status) => {
-    const res = await axiosInstance.put(API_ENDPOINTS.ADMIN_ORDERS.UPDATE_STATUS(id), {
-      status,
-    });
+  /** Cập nhật trạng thái TOÀN BỘ đơn hàng */
+  updateOrderStatus: async (orderId, status) => {
+    const res = await axiosInstance.patch(`/api/admin/orders/${orderId}/status?status=${status}`);
     return res.data;
   },
 
-  /**
-   * Huỷ đơn hàng (admin)
-   * PUT /api/admin/orders/:id/cancel
-   * Body: { reason }
-   */
-  cancel: async (id, reason = '') => {
-    const res = await axiosInstance.put(API_ENDPOINTS.ADMIN_ORDERS.CANCEL(id), { reason });
+  /** Cập nhật trạng thái TỪNG ITEM trong đơn hàng */
+  updateOrderItemStatus: async (itemId, status) => {
+    const res = await axiosInstance.patch(`/api/admin/orders/items/${itemId}/status?status=${status}`);
     return res.data;
   },
-
-  /**
-   * Tạo đơn hàng tại quầy (POS)
-   * POST /api/admin/orders
-   * Body: { customer_name, customer_phone, items[], payment_method, note }
-   */
-  createOffline: async (payload) => {
-    const res = await axiosInstance.post(API_ENDPOINTS.ADMIN_ORDERS.CREATE, payload);
+  
+  /** (Bonus) Cập nhật trạng thái hoàn tiền cho từng Item */
+  updateOrderItemRefundStatus: async (itemId, status) => {
+    const res = await axiosInstance.patch(`/api/admin/orders/items/${itemId}/refund-status?status=${status}`);
     return res.data;
-  },
-
-  /**
-   * Tra cứu nhanh tồn kho cho POS
-   */
-  searchProductForPOS: async (keyword) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.ADMIN_PRODUCTS.GET_ALL, {
-      params: { keyword, status: 'ACTIVE', limit: 10 },
-    });
-    return res.data?.data || [];
-  },
+  }
 };

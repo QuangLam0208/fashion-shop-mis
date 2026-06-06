@@ -28,7 +28,7 @@ export const checkoutService = {
    * payload: { address_id, payment_method, coupon_code, items[], note }
    */
   placeOrder: async (payload) => {
-    const res = await axiosInstance.post(API_ENDPOINTS.CUSTOMER.CHECKOUT, payload);
+    const res = await axiosInstance.post('/api/orders', payload);
     return res.data;
   },
 };

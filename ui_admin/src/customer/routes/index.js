@@ -26,7 +26,7 @@ import OrderConfirmPage from '../pages/checkout/OrderConfirmPage';
 
 // ── Account (protected)
 import ProfilePage     from '../pages/account/ProfilePage';
-import MyOrdersPage    from '../pages/account/MyOrdersPage';
+import CustomerOrder    from '../pages/account/CustomerOrderListPage';
 import OrderDetailPage from '../pages/account/OrderDetailPage';
 
 // ── 404
@@ -56,7 +56,7 @@ const CustomerRoutes = () => (
         <Route path="checkout"           element={<CheckoutPage />} />
         <Route path="checkout/confirm"   element={<OrderConfirmPage />} />
         <Route path="account/profile"    element={<ProfilePage />} />
-        <Route path="account/orders"     element={<MyOrdersPage />} />
+        <Route path="account/orders"     element={<CustomerOrder />} />
         <Route path="account/orders/:id" element={<OrderDetailPage />} />
         {/* <Route path="account/wishlist"   element={<WishlistPage />} /> */}
       </Route>
