@@ -1,117 +1,195 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Descriptions, Table, Steps, Tag, Button, Select, Space, message, Spin } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Descriptions, Table, Tag, Select, Button, message, Spin, Space, Divider, Row, Col } from 'antd';
+import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import PageHeader  from '../../components/PageHeader';
-import StatusBadge from '../../components/StatusBadge';
-import { adminOrderService }   from '../../services/orderService';
-import { formatCurrency, formatDateTime } from '../../../shared/utils/formatters';
-import { ORDER_STATUS, PAYMENT_METHOD, ORDER_TYPE } from '../../../shared/constants';
+import { orderService } from '../../services/orderService';
+import { formatCurrency } from '../../../shared/utils/formatters';
+import { ORDER_STATUS_COLORS } from './OrderListPage';
 
-const STATUS_FLOW = ['PENDING_CONFIRMATION','PROCESSING','SHIPPING','DELIVERED','COMPLETED'];
+const { Option } = Select;
 
 const OrderDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [order,   setOrder]   = useState(null);
+
+  const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [nextStatus, setNextStatus] = useState('');
-  const [updating, setUpdating]     = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [newStatus, setNewStatus] = useState(null);
+
+  const fetchOrderDetail = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await orderService.getOrderDetail(id);
+      setOrder(res);
+      setNewStatus(res.status); // Gán trạng thái hiện tại lên Select
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Không thể tải chi tiết đơn hàng');
+      navigate('/admin/orders');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, navigate]);
 
   useEffect(() => {
-    (async () => {
-      try { const o = await adminOrderService.getById(id); setOrder(o); }
-      finally { setLoading(false); }
-    })();
-  }, [id]);
+    fetchOrderDetail();
+  }, [fetchOrderDetail]);
 
-  const handleUpdateStatus = async () => {
-    if (!nextStatus) return;
-    setUpdating(true);
-    try { const updated = await adminOrderService.updateStatus(id, nextStatus); setOrder(o => ({ ...o, status: updated.status })); message.success('Cập nhật trạng thái thành công'); setNextStatus(''); }
-    catch { message.error('Cập nhật thất bại'); }
-    finally { setUpdating(false); }
+  // Cập nhật trạng thái Tổng Đơn Hàng
+  const handleUpdateOrderStatus = async () => {
+    if (!newStatus || newStatus === order.status) return;
+    setUpdatingStatus(true);
+    try {
+      await orderService.updateOrderStatus(id, newStatus);
+      message.success('Cập nhật trạng thái đơn hàng thành công');
+      fetchOrderDetail(); // Reload lại dữ liệu
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Cập nhật trạng thái thất bại');
+    } finally {
+      setUpdatingStatus(false);
+    }
   };
 
-  if (loading) return <div style={{ display:'flex', justifyContent:'center', paddingTop:80 }}><Spin size="large" /></div>;
-  if (!order)  return <div>Không tìm thấy đơn hàng</div>;
+  // Cập nhật trạng thái Từng Sản Phẩm (OrderItem)
+  const handleUpdateItemStatus = async (itemId, currentStatus, targetStatus) => {
+    if (currentStatus === targetStatus) return;
+    try {
+      await orderService.updateOrderItemStatus(itemId, targetStatus);
+      message.success('Đã cập nhật trạng thái sản phẩm');
+      fetchOrderDetail(); // Reload lại dữ liệu
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Cập nhật trạng thái sản phẩm thất bại');
+    }
+  };
 
-  const currentIdx = STATUS_FLOW.indexOf(order.status);
-  const nextOpts   = STATUS_FLOW.slice(currentIdx + 1).map(s => ({ label: ORDER_STATUS[s]?.label, value: s }));
+  if (loading || !order) {
+    return <div style={{ textAlign: 'center', padding: '100px' }}><Spin size="large" /></div>;
+  }
 
-  const itemCols = [
-    { title: 'Sản phẩm', dataIndex: 'product_name', render: (n, r) => `${n} (${r.color} / ${r.size})` },
-    { title: 'SL', dataIndex: 'quantity', align:'center', width:60 },
-    { title: 'Đơn giá', dataIndex: 'price', render: v => formatCurrency(v), align:'right' },
-    { title: 'Thành tiền', render: (_, r) => formatCurrency(r.price * r.quantity), align:'right' },
-    { title: 'Trạng thái', dataIndex: 'status', render: s => <StatusBadge type="order" status={s} /> },
+  const itemColumns = [
+    {
+      title: 'Sản phẩm',
+      key: 'product',
+      render: (_, record) => (
+        <Space>
+          <img src={record.imageUrl || record.primaryImageUrl || 'https://placehold.co/50x50'} alt="sp" style={{ width: 50, height: 50, borderRadius: 4, objectFit: 'cover' }} />
+          <div>
+            <div style={{ fontWeight: 600 }}>{record.productName}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>Màu: {record.color} - Size: {record.size}</div>
+          </div>
+        </Space>
+      )
+    },
+    {
+      title: 'Đơn giá',
+      dataIndex: 'price',
+      align: 'right',
+      render: (price) => formatCurrency(price)
+    },
+    {
+      title: 'Số lượng',
+      dataIndex: 'quantity',
+      align: 'center'
+    },
+    {
+      title: 'Thành tiền',
+      key: 'total',
+      align: 'right',
+      render: (_, record) => <strong style={{ color: '#e53935' }}>{formatCurrency(record.price * record.quantity)}</strong>
+    },
+    {
+      title: 'Trạng thái Item',
+      key: 'itemStatus',
+      align: 'center',
+      render: (_, record) => (
+        <Select 
+          value={record.status || 'PENDING'} 
+          size="small"
+          style={{ width: 140 }}
+          onChange={(val) => handleUpdateItemStatus(record.id || record.orderItemId, record.status, val)}
+        >
+          <Option value="PENDING">Chờ xử lý</Option>
+          <Option value="PREPARED">Đã chuẩn bị</Option>
+          <Option value="CANCELLED">Đã hủy</Option>
+          <Option value="RETURNED">Đã trả hàng</Option>
+        </Select>
+      )
+    }
   ];
 
   return (
     <div>
-      <PageHeader
-        title={`Chi tiết đơn #${order.order_id}`}
-        breadcrumbs={[{ label:'Đơn hàng', path:'/admin/orders' }, { label:`#${order.order_id}` }]}
-        extra={<Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/orders')}>Quay lại</Button>}
-      />
-      <Row gutter={[16,16]}>
-        <Col xs={24} lg={16}>
-          {/* Order info */}
-          <Card title="Thông tin đơn hàng" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)', marginBottom:16 }}>
-            <Descriptions column={{ xs:1, sm:2 }} size="small">
-              <Descriptions.Item label="Khách hàng">{order.customer_name}</Descriptions.Item>
-              <Descriptions.Item label="Ngày đặt">{formatDateTime(order.order_date)}</Descriptions.Item>
-              <Descriptions.Item label="Phương thức TT">{PAYMENT_METHOD[order.payment_method]}</Descriptions.Item>
-              <Descriptions.Item label="Loại đơn"><Tag color={order.type==='OFFLINE'?'purple':'blue'}>{ORDER_TYPE[order.type]}</Tag></Descriptions.Item>
-              <Descriptions.Item label="Trạng thái"><StatusBadge type="order" status={order.status} /></Descriptions.Item>
-              <Descriptions.Item label="Tổng tiền"><span style={{ fontWeight:700, color:'#6366f1' }}>{formatCurrency(order.total_amount)}</span></Descriptions.Item>
-              {order.shipping_address && <Descriptions.Item label="Địa chỉ giao" span={2}>{order.shipping_address}</Descriptions.Item>}
-            </Descriptions>
-          </Card>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <Space>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/orders')} />
+          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Chi tiết đơn hàng #{order.id}</h2>
+        </Space>
+        
+        {/* Cập nhật trạng thái tổng thể */}
+        <Space>
+          <span style={{ fontWeight: 500 }}>Trạng thái Đơn hàng:</span>
+          <Select value={newStatus} onChange={setNewStatus} style={{ width: 180 }}>
+            <Option value="PENDING_CONFIRMATION">Chờ xác nhận</Option>
+            <Option value="PENDING_PAYMENT">Chờ thanh toán</Option>
+            <Option value="PAID">Đã thanh toán</Option>
+            <Option value="PROCESSING">Đang xử lý</Option>
+            <Option value="SHIPPING">Đang giao hàng</Option>
+            <Option value="DELIVERED">Đã giao hàng</Option>
+            <Option value="COMPLETED">Hoàn thành</Option>
+            <Option value="CANCELLED">Đã hủy</Option>
+          </Select>
+          <Button 
+            type="primary" 
+            icon={<SaveOutlined />} 
+            onClick={handleUpdateOrderStatus}
+            loading={updatingStatus}
+            disabled={newStatus === order.status}
+          >
+            Lưu
+          </Button>
+        </Space>
+      </div>
 
-          {/* Items */}
-          <Card title="Sản phẩm trong đơn" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)' }}>
-            <Table dataSource={order.items} columns={itemCols} rowKey="order_item_id" pagination={false} size="small"
-              summary={() => (
-                <Table.Summary.Row>
-                  <Table.Summary.Cell colSpan={3} />
-                  <Table.Summary.Cell align="right"><strong>{formatCurrency(order.total_amount)}</strong></Table.Summary.Cell>
-                  <Table.Summary.Cell />
-                </Table.Summary.Row>
-              )}
-            />
+      <Row gutter={[24, 24]}>
+        <Col span={24}>
+          <Card title="Thông tin khách hàng & Giao hàng" bordered={false} style={{ borderRadius: 8 }}>
+            <Descriptions column={{ xxl: 3, xl: 3, lg: 2, md: 1, sm: 1, xs: 1 }} bordered size="small">
+              <Descriptions.Item label="Khách hàng">
+                <strong>{order.user?.fullName || order.fullName || 'N/A'}</strong>
+              </Descriptions.Item>
+              <Descriptions.Item label="Số điện thoại">
+                {order.user?.phone || order.phone || 'N/A'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Email">
+                {order.user?.email || order.email || 'N/A'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Địa chỉ giao hàng" span={3}>
+                {order.shippingAddress || 'N/A'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Thanh toán">
+                {order.paymentMethod || 'COD'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tổng tiền" span={2}>
+                <strong style={{ color: '#e53935', fontSize: 16 }}>{formatCurrency(order.totalAmount)}</strong>
+              </Descriptions.Item>
+            </Descriptions>
           </Card>
         </Col>
 
-        <Col xs={24} lg={8}>
-          {/* Update status */}
-          {!['CANCELLED','COMPLETED'].includes(order.status) && nextOpts.length > 0 && (
-            <Card title="Cập nhật trạng thái" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)', marginBottom:16 }}>
-              <Space direction="vertical" style={{ width:'100%' }}>
-                <Select placeholder="Chọn trạng thái mới" options={nextOpts} value={nextStatus} onChange={setNextStatus} style={{ width:'100%' }} />
-                <Button type="primary" block onClick={handleUpdateStatus} loading={updating} disabled={!nextStatus}
-                  style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', border:'none' }}>
-                  Xác nhận cập nhật
-                </Button>
-              </Space>
-            </Card>
-          )}
-
-          {/* Timeline */}
-          <Card title="Lịch sử trạng thái" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)' }}>
-            {order.histories?.length > 0 ? (
-              <Steps direction="vertical" size="small" current={order.histories.length - 1}
-                items={order.histories.map(h => ({
-                  title: ORDER_STATUS[h.new_status]?.label || h.new_status,
-                  description: formatDateTime(h.change_date),
-                  status: 'finish',
-                }))}
-              />
-            ) : <span style={{ color:'#94a3b8' }}>Chưa có lịch sử</span>}
+        <Col span={24}>
+          <Card title="Danh sách sản phẩm" bordered={false} style={{ borderRadius: 8 }}>
+            <Table 
+              columns={itemColumns} 
+              dataSource={order.items || []} 
+              rowKey={(record) => record.id || record.orderItemId}
+              pagination={false}
+              bordered
+            />
           </Card>
         </Col>
       </Row>
     </div>
   );
 };
+
 export default OrderDetailPage;

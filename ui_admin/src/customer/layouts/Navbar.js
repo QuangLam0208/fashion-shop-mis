@@ -29,7 +29,7 @@ const Navbar = () => {
       key: 'orders',
       label: 'Đơn mua',
       icon: <ShoppingCartOutlined />,
-      onClick: () => navigate('/orders')
+      onClick: () => navigate('/account/orders')
     },
     {
       key: 'wishlist',
@@ -56,16 +56,18 @@ const Navbar = () => {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         {/* Logo */}
-        <Link to="/" style={{ fontFamily: 'serif', fontSize: 22, fontWeight: 700, letterSpacing: 3, color: '#1a1a1a', textDecoration: 'none' }}>
-          ✦ FASHION
-        </Link>
+        
 
         {/* Nav links */}
         <nav style={{ display: 'flex', gap: 28 }}>
-          {[['/', 'Trang chủ'], ['/shop', 'Sản phẩm'], ['/shop?sale=true', 'Sale']].map(([href, label]) => (
+          {[['/', 'Danh mục'], ['/shop', 'Sản phẩm'], ['/shop?sale=true', 'Sale']].map(([href, label]) => (
             <Link key={href} to={href} style={{ color: '#333', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>{label}</Link>
           ))}
         </nav>
+
+        <Link to="/" style={{ fontFamily: 'serif', fontSize: 22, fontWeight: 700, letterSpacing: 3, color: '#1a1a1a', textDecoration: 'none' }}>
+          ✦ FASHION ✦
+        </Link>
 
         {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

@@ -172,3 +172,30 @@ export const PRICE_RANGES = [
 export const SHIPPING_FEE = 30000; // phí ship mặc định
 
 export const FREE_SHIP_THRESHOLD = 500000; // miễn phí ship từ
+
+
+export const STATUS_MAP = {
+  PENDING_CONFIRMATION: 'Chờ xác nhận',
+  PENDING_PAYMENT: 'Chờ thanh toán',
+  PAID: 'Đã thanh toán',
+  PROCESSING: 'Đang xử lý',
+  SHIPPING: 'Đang giao hàng',
+  DELIVERED: 'Đã giao hàng',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Đã hủy',
+  PAYMENT_FAILED: 'Thanh toán thất bại',
+  PAYMENT_EXPIRED: 'Hết hạn thanh toán'
+};
+
+export const STATUS_COLORS = {
+  PENDING_CONFIRMATION: 'orange',
+  PENDING_PAYMENT: 'gold',
+  PAID: 'lime',
+  PROCESSING: 'blue',
+  SHIPPING: 'cyan',
+  DELIVERED: 'geekblue',
+  COMPLETED: 'green',
+  CANCELLED: 'red',
+  PAYMENT_FAILED: 'volcano',
+  PAYMENT_EXPIRED: 'magenta'
+};
