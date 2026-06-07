@@ -1,7 +1,10 @@
 package com.fashion.service.wishlist;
 
+import com.fashion.dto.request.RemoveWishlistRequestDTO;
 import com.fashion.dto.response.WishlistItemResponseDTO;
 import com.fashion.dto.response.WishlistToggleResponseDTO;
+import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.User;
 import com.fashion.model.enums.ProductStatus;
 import com.fashion.model.Product;
@@ -9,9 +12,12 @@ import com.fashion.model.WishlistItem;
 import com.fashion.repository.ProductRepository;
 import com.fashion.repository.UserRepository;
 import com.fashion.repository.WishlistItemRepository;
+import com.fashion.util.SecurityUtils;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 import java.util.Optional;
@@ -66,9 +72,9 @@ public class WishlistServiceImpl implements WishlistService {
         } else {
             // Chưa yêu thích -> Thêm vào yêu thích
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
+                    .orElseThrow(() -> new BadRequestException("Người dùng không tồn tại!"));
             Product product = productRepository.findById(productId)
-                    .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
+                    .orElseThrow(() -> new BadRequestException("Sản phẩm không tồn tại!"));
 
             WishlistItem newItem = WishlistItem.builder()
                     .user(user)
@@ -84,16 +90,13 @@ public class WishlistServiceImpl implements WishlistService {
         }
     }
 
-    @Override
     @Transactional
-    public void removeWishlistItem(Long userId, Long wishlistItemId) {
-        WishlistItem item = wishlistItemRepository.findById(wishlistItemId)
-                .orElseThrow(() -> new RuntimeException("Mục yêu thích không tồn tại!"));
-
-        if (!item.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Bạn không có quyền xóa mục yêu thích này!");
+    @Override
+    public void removeWishlistItems(Long userId, List<Long> wishlistItemIds) {
+        List<WishlistItem> wishlistItems = wishlistItemRepository.findWishlistItemByIdInAndUserId(wishlistItemIds, userId);
+        if (wishlistItems.size() != wishlistItemIds.size()) {
+            throw new BadRequestException("Mot hoac nhieu muc yeu thich khong thuoc nguoi dung");
         }
-
-        wishlistItemRepository.delete(item);
+        wishlistItemRepository.deleteAllInBatch(wishlistItems);
     }
 }
