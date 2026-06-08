@@ -323,13 +323,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // THEO DÕI TRẠNG THÁI ĐƠN HÀNG - Xem chi tiết
-
     @Override
     @Transactional(readOnly = true)
     public OrderDetailResponseDTO getMyOrderDetail(Long userId, Long orderId) {
-        Order order = orderRepository.findByIdAndUserId(orderId, userId)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Đơn hàng không tồn tại hoặc không thuộc quyền sở hữu của bạn!"));
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại!"));
+
+        // AC-BE-US28-02: Kiểm tra quyền sở hữu, nếu không thuộc về User hiện tại thì ném lỗi bảo mật
+        if (!order.getUser().getId().equals(userId)) {
+            throw new BadRequestException("Truy cập bị từ chối: Đơn hàng này không thuộc quyền sở hữu của bạn!");
+        }
 
         List<OrderDetailResponseDTO.OrderItemDTO> itemDTOs = order.getOrderItems().stream()
                 .map(item -> {
@@ -343,15 +346,13 @@ public class OrderServiceImpl implements OrderService {
 
                     return OrderDetailResponseDTO.OrderItemDTO.builder()
                             .orderItemId(item.getId())
-                            .productId(item.getProductVariant() != null ? item.getProductVariant().getProduct().getId()
-                                    : null)
+                            .productId(item.getProductVariant() != null ? item.getProductVariant().getProduct().getId() : null)
                             .productName(item.getProductName())
                             .productImage(getProductImageUrl(item.getProductVariant()))
                             .size(item.getProductVariant() != null ? item.getProductVariant().getSize() : null)
                             .color(item.getProductVariant() != null ? item.getProductVariant().getColor() : null)
                             .quantity(item.getQuantity())
-                            .price(item.getPrice() != null ? item.getPrice()
-                                    : (item.getProductVariant() != null ? item.getProductVariant().getPrice() : 0.0))
+                            .price(item.getPrice() != null ? item.getPrice() : (item.getProductVariant() != null ? item.getProductVariant().getPrice() : 0.0))
                             .status(item.getStatus())
                             .refundStatus(item.getRefundStatus())
                             .cancellationReason(item.getCancellationReason())

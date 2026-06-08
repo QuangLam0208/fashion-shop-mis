@@ -28,7 +28,19 @@ public class OrderDetailResponseDTO {
     private Double discountAmount;
     private Double discountValue;
     private DiscountType discountType;
+    private CustomerInfo userInfo;
     private List<OrderItemDTO> items;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class CustomerInfo {
+        private Long userId;
+        private String fullName;
+        private String email;
+        private String phone;
+    }
 
     @Data
     @NoArgsConstructor

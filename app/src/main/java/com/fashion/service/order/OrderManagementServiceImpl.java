@@ -3,6 +3,8 @@ package com.fashion.service.order;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.OrderDetailResponseDTO;
 import com.fashion.dto.response.OrderSummaryResponseDTO;
+import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Order;
 import com.fashion.model.OrderHistory;
 import com.fashion.model.OrderItem;
@@ -15,16 +17,16 @@ import com.fashion.repository.OrderItemRepository;
 import com.fashion.repository.OrderRepository;
 import com.fashion.repository.ReturnRequestRepository;
 import com.fashion.service.notification.NotificationService;
+import com.fashion.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.Instant;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,6 +42,7 @@ public class OrderManagementServiceImpl implements OrderManagementService {
     @Override
     @Transactional
     public void updateOrderItemStatus(Long orderItemId, OrderStatus newStatus) {
+        Long currentAdminId = SecurityUtils.getAuthenticatedUserId();
         OrderItem item = orderItemRepository.findById(orderItemId)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm trong đơn hàng không tồn tại!"));
 
@@ -54,6 +57,7 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                 .previousStatus(currentStatus)
                 .newStatus(newStatus)
                 .changeDate(new Date())
+                .changedByAdminId(currentAdminId)
                 .build();
         historyRepository.save(history);
 
@@ -113,19 +117,46 @@ public class OrderManagementServiceImpl implements OrderManagementService {
     }
 
     private void checkStatusTransition(OrderStatus currentStatus, OrderStatus newStatus) {
-        if (currentStatus == OrderStatus.CANCELLED || currentStatus == OrderStatus.COMPLETED) {
-            throw new RuntimeException("Không thể chuyển trạng thái từ " + currentStatus + " sang " + newStatus);
+        boolean isValid = false;
+
+        switch (currentStatus) {
+            case PENDING_CONFIRMATION:
+                isValid = (newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED);
+                break;
+            case CONFIRMED:
+                isValid = (newStatus == OrderStatus.PROCESSING);
+                break;
+            case PROCESSING:
+                isValid = (newStatus == OrderStatus.SHIPPING);
+                break;
+            case SHIPPING:
+                isValid = (newStatus == OrderStatus.DELIVERED || newStatus == OrderStatus.RETURNED);
+                break;
+            default:
+                isValid = false;
+                break;
+        }
+        if (!isValid) {
+            throw new BadRequestException("Chuyển đổi trạng thái không hợp lệ: Từ " + currentStatus + " sang " + newStatus);
         }
     }
 
     @Override
     public Page<OrderSummaryResponseDTO> getAllOrders(OrderStatus status, Date startDate, Date endDate, Pageable pageable) {
-        return orderRepository.searchOrders(status, startDate, endDate, pageable).map(o -> {
+
+        Instant startInstant = (startDate != null) ? startDate.toInstant() : null;
+        Instant endInstant = (endDate != null) ? endDate.toInstant().plusSeconds(86399) : null;
+
+        return orderRepository.searchOrders(status, startInstant, endInstant, pageable).map(o -> {
             Map<String, Integer> statusSummary = new HashMap<>();
             for (OrderItem item : o.getOrderItems()) {
                 String ss = item.getStatus().name();
                 statusSummary.put(ss, statusSummary.getOrDefault(ss, 0) + 1);
             }
+
+            String name = (o.getUser() != null) ? o.getUser().getFullName() : null;
+            String email = (o.getUser() != null) ? o.getUser().getEmail() : null;
+
             return OrderSummaryResponseDTO.builder()
                     .orderId(o.getId())
                     .orderDate(o.getOrderDate())
@@ -134,6 +165,8 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                     .status(o.getStatus())
                     .itemCount(o.getOrderItems().size())
                     .statusSummary(statusSummary)
+                    .customerName(name)
+                    .customerEmail(email)
                     .build();
         });
     }
@@ -141,16 +174,18 @@ public class OrderManagementServiceImpl implements OrderManagementService {
     @Override
     public OrderDetailResponseDTO getOrderDetail(Long orderId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng #" + orderId + " không tồn tại trong hệ thống!"));
 
         List<OrderDetailResponseDTO.OrderItemDTO> itemDTOs = order.getOrderItems().stream().map(item -> {
-            List<OrderDetailResponseDTO.OrderHistoryDTO> histories = item.getOrderHistories().stream().map(h ->
-                    OrderDetailResponseDTO.OrderHistoryDTO.builder()
+
+            List<OrderDetailResponseDTO.OrderHistoryDTO> histories = item.getOrderHistories().stream()
+                    .sorted(Comparator.comparing(h -> h.getChangeDate()))
+                    .map(h -> OrderDetailResponseDTO.OrderHistoryDTO.builder()
                             .previousStatus(h.getPreviousStatus())
                             .newStatus(h.getNewStatus())
                             .changeDate(h.getChangeDate().toInstant())
                             .build()
-            ).collect(Collectors.toList());
+                    ).collect(Collectors.toList());
 
             return OrderDetailResponseDTO.OrderItemDTO.builder()
                     .orderItemId(item.getId())
@@ -168,6 +203,16 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                     .build();
         }).collect(Collectors.toList());
 
+        OrderDetailResponseDTO.CustomerInfo customerInfo = null;
+        if (order.getUser() != null) {
+            customerInfo = OrderDetailResponseDTO.CustomerInfo.builder()
+                    .userId(order.getUser().getId())
+                    .fullName(order.getUser().getFullName())
+                    .email(order.getUser().getEmail())
+                    .phone(order.getUser().getPhone())
+                    .build();
+        }
+
         return OrderDetailResponseDTO.builder()
                 .orderId(order.getId())
                 .orderDate(order.getOrderDate())
@@ -175,6 +220,7 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                 .status(order.getStatus())
                 .paymentMethod(order.getPaymentMethod())
                 .shippingAddress(order.getShippingAddress())
+                .userInfo(customerInfo)
                 .items(itemDTOs)
                 .build();
     }

@@ -553,4 +553,91 @@ class OrderServiceImplTest {
         assertEquals(OrderStatus.CANCELLED, orderItem.getStatus());
         assertEquals(RefundStatus.PENDING, orderItem.getRefundStatus());
     }
+    // =========================================================================
+    // 7. Get Order List & Details Tests (AC-BE-US28)
+    // =========================================================================
+
+    @Test
+    void getMyOrders_Success_ReturnsOrderSummaryList() {
+        // Arrange
+        Order order1 = Order.builder()
+                .id(10L)
+                .user(mockUser)
+                .totalAmount(500000.0)
+                .status(OrderStatus.PENDING_CONFIRMATION)
+                .paymentMethod(PaymentMethod.COD)
+                .orderItems(new ArrayList<>())
+                .build();
+
+        org.springframework.data.domain.Page<Order> orderPage = new org.springframework.data.domain.PageImpl<>(List.of(order1));
+
+        when(orderRepository.findAllMyOrders(eq(1L), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(orderPage);
+
+        // Act
+        org.springframework.data.domain.Page<com.fashion.dto.response.OrderSummaryResponseDTO> result =
+                orderService.getMyOrders(1L, null, org.springframework.data.domain.PageRequest.of(0, 10));
+
+        // Assert (AC-BE-US28-01: Returns 200 OK with correct data structure)
+        assertNotNull(result);
+        assertEquals(1, result.getContent().size());
+        assertEquals(10L, result.getContent().get(0).getOrderId());
+        assertEquals(500000.0, result.getContent().get(0).getTotalAmount());
+        assertEquals(OrderStatus.PENDING_CONFIRMATION, result.getContent().get(0).getStatus());
+    }
+
+    @Test
+    void getMyOrderDetail_Success_ReturnsFullData() {
+        // Arrange
+        OrderItem orderItem = OrderItem.builder()
+                .id(300L)
+                .status(OrderStatus.PENDING_CONFIRMATION)
+                .productVariant(mockVariant)
+                .productName("Áo Thun Nam")
+                .quantity(2L)
+                .price(200000.0)
+                .orderHistories(new ArrayList<>())
+                .build();
+
+        Order order = Order.builder()
+                .id(10L)
+                .user(mockUser) // userId = 1L
+                .totalAmount(400000.0)
+                .status(OrderStatus.PENDING_CONFIRMATION)
+                .paymentMethod(PaymentMethod.COD)
+                .orderItems(List.of(orderItem))
+                .build();
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        // Act
+        com.fashion.dto.response.OrderDetailResponseDTO result = orderService.getMyOrderDetail(1L, 10L);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(10L, result.getOrderId());
+        assertEquals(400000.0, result.getTotalAmount());
+        assertEquals(1, result.getItems().size());
+        assertEquals("Áo Thun Nam", result.getItems().get(0).getProductName());
+        assertEquals(200000.0, result.getItems().get(0).getPrice());
+    }
+
+    @Test
+    void getMyOrderDetail_Fails_WhenOrderBelongsToOtherUser_ThrowsSecurityError() {
+        // Arrange
+        User anotherUser = User.builder().id(2L).build();
+        Order order = Order.builder()
+                .id(10L)
+                .user(anotherUser) // Order thuộc về user 2
+                .build();
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        // Act & Assert (AC-BE-US28-02: Security Error)
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> {
+            orderService.getMyOrderDetail(1L, 10L); // User 1 cố gắng truy cập
+        });
+
+        assertTrue(ex.getMessage().contains("Truy cập bị từ chối"), "Phải trả về lỗi từ chối truy cập");
+    }
 }
