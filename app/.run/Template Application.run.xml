@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="true" type="Application" factoryName="Application">
+    <envs>
+      <env name="cloudinary.api-key" value="768766975954593" />
+      <env name=" cloudinary.api-secret" value="qWpoBsfPN_fmoS0sJ_FLsIQF_6E" />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="com.fashion.AppApplication" />
+    <module name="app" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
