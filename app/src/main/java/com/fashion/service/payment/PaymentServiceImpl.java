@@ -13,6 +13,12 @@ import com.fashion.service.order.OrderManagementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.fashion.exception.BadRequestException;
+import com.fashion.model.enums.PaymentMethod;
+import com.fashion.util.SecurityUtils;
+
+import com.fashion.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Date;
 import java.util.Map;
@@ -99,6 +105,30 @@ public class PaymentServiceImpl implements PaymentService {
         return PaymentResponseDTO.builder()
                 .status("SUCCESS")
                 .message("Thanh toán thành công (Mock)!")
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public PaymentResponseDTO recreateMomoPayment(Long orderId) {
+        Long userId = SecurityUtils.getAuthenticatedUserId();
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại!"));
+
+        if (!order.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng này!");
+        }
+
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT || order.getPaymentMethod() != PaymentMethod.MOMO) {
+            throw new BadRequestException("Đơn hàng không đủ điều kiện để thanh toán lại");
+        }
+
+        String paymentUrl = momoService.createPaymentUrl(order.getId(), order.getTotalAmount());
+
+        return PaymentResponseDTO.builder()
+                .status("SUCCESS")
+                .message("Tạo mới liên kết thanh toán thành công")
+                .paymentUrl(paymentUrl)
                 .build();
     }
 }

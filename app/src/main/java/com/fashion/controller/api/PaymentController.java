@@ -64,4 +64,13 @@ public class PaymentController {
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(redirectUrl)).build();
     }
+
+    /**
+     * API tạo lại liên kết thanh toán MoMo cho đơn hàng (nếu đơn hàng chưa thanh toán và chọn MoMo)
+     */
+    @PostMapping("/momo/recreate/{orderId}")
+    public ResponseEntity<PaymentResponseDTO> recreateMomoPayment(@PathVariable Long orderId) {
+        PaymentResponseDTO response = paymentService.recreateMomoPayment(orderId);
+        return ResponseEntity.ok(response);
+    }
 }

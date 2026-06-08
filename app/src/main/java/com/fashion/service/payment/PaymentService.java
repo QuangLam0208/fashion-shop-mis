@@ -12,4 +12,5 @@ public interface PaymentService {
     // Xử lý MoMo
     void processMomoIPN(Map<String, Object> payload);
     String processMomoReturn(Map<String, String> allParams);
+    PaymentResponseDTO recreateMomoPayment(Long orderId);
 }
