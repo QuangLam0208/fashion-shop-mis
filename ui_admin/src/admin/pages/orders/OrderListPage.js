@@ -67,8 +67,8 @@ const OrderListPage = () => {
     },
     {
       title: 'Khách hàng',
-      key: 'user',
-      render: (_, record) => record.user?.fullName || record.fullName || 'Khách vãng lai'
+      key: 'customerName',
+      render: (_, record) => record.customerName || 'Khách vãng lai'
     },
     {
       title: 'Tổng tiền',

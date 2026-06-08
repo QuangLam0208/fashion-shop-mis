@@ -214,3 +214,7 @@
   color: var(--c-dark);
   margin-bottom: var(--space-sm);
 }
+
+.custom-quantity-input input {
+  text-align: center !important;
+}

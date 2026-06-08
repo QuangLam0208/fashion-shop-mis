@@ -5,6 +5,7 @@ import { DeleteOutlined, ShoppingCartOutlined, ArrowRightOutlined } from '@ant-d
 import { useNavigate } from 'react-router-dom';
 import useCart from '../hooks/useCart';
 import { formatCurrency } from '../../shared/utils/formatters';
+import QuantityInput from './QuantityInput';
 
 const { Text } = Typography;
 
@@ -133,22 +134,16 @@ const CartDrawer = ({ open, onClose }) => {
                       )}
                       
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                        <InputNumber
-                          min={1}
-                          size="small"
+                        <QuantityInput
                           value={item.quantity}
+                          min={1}
+                          max={item.stockQuantity || item.variant?.stockQuantity}
                           onChange={(val) => {
-                            if (val !== null && val !== undefined && val >= 1 && val !== item.quantity) {
+                            // Chỉ gọi API cập nhật khi số lượng thực sự thay đổi khác với số lượng cũ
+                            if (val && val !== item.quantity) {
                               updateQuantity(currentItemId, val);
                             }
                           }}
-                          onBlur={(e) => {
-                            const val = parseInt(e.target.value, 10);
-                            if (isNaN(val) || val < 1) {
-                              updateQuantity(currentItemId, 1);
-                            }
-                          }}
-                          style={{ width: 64, borderRadius: 4 }}
                         />
                         <Text style={{ fontWeight: 600, color: '#1a1a1a', fontSize: 14 }}>
                           {formatCurrency(itemPrice * item.quantity)}

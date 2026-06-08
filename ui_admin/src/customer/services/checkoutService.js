@@ -15,11 +15,19 @@ export const checkoutService = {
   },
 
   /** Xác thực mã coupon */
-  applyCoupon: async (code, orderAmount) => {
-    const res = await axiosInstance.post('/api/customer/coupons/validate', {
-      code,
-      order_amount: orderAmount,
-    });
+  applyCoupon: async (payload) => {
+    // UI đang truyền xuống payload: { couponCode: "SUMMER50", orderAmount: 500000 }
+    
+    const res = await axiosInstance.post(
+      '/api/coupons/apply', 
+      { 
+        code: payload.couponCode // Body: { "code": "string" }
+      },
+      { 
+        params: { currentTotal: payload.orderAmount } // Query param: ?currentTotal=number
+      }
+    );
+    
     return res.data;
   },
 
@@ -30,5 +38,13 @@ export const checkoutService = {
   placeOrder: async (payload) => {
     const res = await axiosInstance.post('/api/orders', payload);
     return res.data;
+  },
+  getAvailableCoupons: async () => {
+    const res = await axiosInstance.get('/api/coupons/list');
+    return res.data; // Backend trả về List<CouponResponseDTO>
+  },
+  retryMomoPayment: async (orderId) => {
+    const res = await axiosInstance.post(`/api/payments/momo/recreate/${orderId}`);
+    return res.data; // Backend trả về { paymentUrl: "..." }
   },
 };
