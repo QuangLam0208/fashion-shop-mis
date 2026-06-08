@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -51,7 +52,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     int countOrders(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
 
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN o.orderItems oi WHERE (?1 IS NULL OR oi.status = ?1) AND (CAST(?2 AS date) IS NULL OR o.orderDate >= ?2) AND (CAST(?3 AS date) IS NULL OR o.orderDate <= ?3)")
-    Page<Order> searchOrders(OrderStatus status, Date startDate, Date endDate, Pageable pageable);
+    Page<Order> searchOrders(OrderStatus status, Instant startDate, Instant endDate, Pageable pageable);
 
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN o.orderItems oi WHERE o.user.id = :userId AND oi.status IN :statuses ORDER BY o.orderDate DESC")
     Page<Order> searchMyOrdersByStatuses(@Param("userId") Long userId, @Param("statuses") List<OrderStatus> statuses,

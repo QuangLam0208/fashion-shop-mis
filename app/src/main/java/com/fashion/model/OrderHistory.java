@@ -33,4 +33,7 @@ public class OrderHistory {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_item_id")
     private OrderItem orderItem;
+
+    @Column(name = "changed_by_admin_id")
+    private Long changedByAdminId;
 }

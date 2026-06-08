@@ -25,4 +25,6 @@ public class OrderSummaryResponseDTO {
     // Tổng hợp trạng thái của từng sản phẩm: VD {"PAID": 2, "SHIPPING": 1}
     private Map<String, Integer> statusSummary;
     private List<OrderItemPreviewDTO> items;
+    private String customerName;
+    private String customerEmail;
 }

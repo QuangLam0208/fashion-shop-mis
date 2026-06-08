@@ -1,5 +1,6 @@
 package com.fashion.controller.api.admin;
 
+import com.fashion.dto.request.UpdateOrderStatusRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.OrderDetailResponseDTO;
 import com.fashion.dto.response.OrderSummaryResponseDTO;
@@ -42,12 +43,11 @@ public class AdminOrderController {
     }
 
     // CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
-    @PatchMapping("/{orderId}/status")
+    @PutMapping("/status")
     public ResponseEntity<MessageResponseDTO> updateOrderStatus(
-            @PathVariable Long orderId,
-            @RequestParam OrderStatus status
+            @RequestBody UpdateOrderStatusRequestDTO request
     ) {
-        return ResponseEntity.ok(orderManagementService.updateOrderStatus(orderId, status));
+        return ResponseEntity.ok(orderManagementService.updateOrderStatus(request.getOrderId(), request.getStatus()));
     }
 
     // CẬP NHẬT TRẠNG THÁI TỪNG SẢN PHẨM TRONG ĐƠN
