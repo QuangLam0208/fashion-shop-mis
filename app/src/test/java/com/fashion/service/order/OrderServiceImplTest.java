@@ -1,8 +1,11 @@
 package com.fashion.service.order;
 
+import com.fashion.dto.request.CancelOrderRequestDTO;
 import com.fashion.dto.request.PlaceOrderRequestDTO;
+import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.PlaceOrderResponseDTO;
 import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.*;
 import com.fashion.model.enums.*;
 import com.fashion.repository.*;
@@ -419,5 +422,135 @@ class OrderServiceImplTest {
             assertEquals(OrderStatus.PENDING_PAYMENT, item.getStatus(),
                     "MOMO OrderItem.status phải là PENDING_PAYMENT");
         }
+    }
+    // =========================================================================
+    // 6. Cancel Order Tests (AC-BE-US27)
+    // =========================================================================
+
+    @Test
+    void cancelOrder_Fails_OrderNotFound() {
+        when(orderRepository.findById(999L)).thenReturn(Optional.empty());
+        CancelOrderRequestDTO request = new CancelOrderRequestDTO("Hủy đơn");
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class, () ->
+                orderService.cancelOrder(1L, 999L, request)
+        );
+
+        assertEquals("Đơn hàng không tồn tại!", ex.getMessage());
+    }
+
+    @Test
+    void cancelOrder_Fails_WhenOrderOwnedByAnotherUser() {
+        User anotherUser = User.builder().id(2L).build();
+        Order order = Order.builder()
+                .id(10L)
+                .user(anotherUser) // Thuộc về user 2
+                .status(OrderStatus.PENDING_CONFIRMATION)
+                .build();
+
+        CancelOrderRequestDTO request = new CancelOrderRequestDTO("Hủy đơn");
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                orderService.cancelOrder(1L, 10L, request) // User 1 gọi hủy
+        );
+
+        assertEquals("Bạn không có quyền hủy đơn hàng này!", ex.getMessage());
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void cancelOrder_Fails_WhenOrderIsShipping() {
+        Order order = Order.builder()
+                .id(10L)
+                .user(mockUser)
+                .status(OrderStatus.SHIPPING)
+                .build();
+
+        CancelOrderRequestDTO request = new CancelOrderRequestDTO("Giao lâu quá");
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                orderService.cancelOrder(1L, 10L, request)
+        );
+
+        assertTrue(ex.getMessage().contains("không thể hủy"));
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void cancelOrder_Success_RestoresInventoryAndProductStatus() {
+        Product outOfStockProduct = Product.builder().id(20L).status(ProductStatus.OUT_OF_STOCK).build();
+        ProductVariant variantToRestore = ProductVariant.builder().id(200L).product(outOfStockProduct).stockQuantity(0L).build();
+
+        OrderItem orderItem = OrderItem.builder()
+                .id(300L)
+                .status(OrderStatus.PENDING_CONFIRMATION)
+                .productVariant(variantToRestore)
+                .quantity(2L)
+                .build();
+
+        Order order = Order.builder()
+                .id(10L)
+                .user(mockUser)
+                .status(OrderStatus.PENDING_CONFIRMATION)
+                .paymentMethod(PaymentMethod.COD)
+                .orderItems(List.of(orderItem))
+                .build();
+
+        CancelOrderRequestDTO request = new CancelOrderRequestDTO("Tôi đổi ý không mua nữa");
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        MessageResponseDTO response = orderService.cancelOrder(1L, 10L, request);
+
+        assertEquals("Hủy đơn hàng thành công!", response.getMessage());
+        assertEquals(OrderStatus.CANCELLED, order.getStatus());
+        assertEquals(OrderStatus.CANCELLED, orderItem.getStatus());
+        assertEquals("Tôi đổi ý không mua nữa", orderItem.getCancellationReason());
+
+        // Kiểm tra số lượng tồn kho được khôi phục
+        assertEquals(2L, variantToRestore.getStockQuantity());
+        verify(productVariantRepository).save(variantToRestore);
+
+        // Kiểm tra sản phẩm cha được mở lại trạng thái ACTIVE
+        assertEquals(ProductStatus.ACTIVE, outOfStockProduct.getStatus());
+
+        // Kiểm tra các repository đã được gọi lưu trữ
+        verify(orderRepository).save(order);
+        verify(orderItemRepository).save(orderItem);
+        verify(orderHistoryRepository).save(any(OrderHistory.class));
+        verify(notificationService).createNotification(eq(mockUser), anyString(), anyString(), eq("WARNING"), eq(10L));
+    }
+
+    @Test
+    void cancelOrder_Success_PaidOnline_UpdatesRefundStatus() {
+        ProductVariant variant = ProductVariant.builder().id(200L).product(mockProduct).stockQuantity(10L).build();
+        OrderItem orderItem = OrderItem.builder()
+                .id(300L)
+                .status(OrderStatus.PAID)
+                .productVariant(variant)
+                .quantity(1L)
+                .build();
+
+        Order order = Order.builder()
+                .id(10L)
+                .user(mockUser)
+                .status(OrderStatus.PAID)
+                .paymentMethod(PaymentMethod.MOMO)
+                .orderItems(List.of(orderItem))
+                .build();
+
+        CancelOrderRequestDTO request = new CancelOrderRequestDTO("Hủy đơn đã thanh toán");
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        MessageResponseDTO response = orderService.cancelOrder(1L, 10L, request);
+
+        assertTrue(response.getMessage().contains("Yêu cầu hoàn tiền đang được xử lý"));
+        assertEquals(OrderStatus.CANCELLED, orderItem.getStatus());
+        assertEquals(RefundStatus.PENDING, orderItem.getRefundStatus());
     }
 }
