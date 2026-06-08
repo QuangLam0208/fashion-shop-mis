@@ -4,6 +4,7 @@ import com.fashion.model.Coupon;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -27,4 +28,10 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     Page<Coupon> findAllForAdmin(String keyword, Pageable pageable);
 
     boolean existsByCode(String code);
+    // Trả về số dòng được update (nếu = 0 nghĩa là đã hết lượt hoặc không tìm thấy)
+    @Modifying
+    @Query("UPDATE Coupon c SET c.usedCount = c.usedCount + 1 " +
+            "WHERE c.id = :couponId " +
+            "AND (c.usageLimit IS NULL OR c.usedCount < c.usageLimit)")
+    int incrementUsedCount(Long couponId);
 }

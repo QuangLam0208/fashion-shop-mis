@@ -49,4 +49,7 @@ public class Coupon {
     @Builder.Default
     @OneToMany(mappedBy = "coupon", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserCoupon> userCoupons = new ArrayList<>();
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer usedCount = 0; // Thêm trường này để đếm số lượt đã dùng
 }
