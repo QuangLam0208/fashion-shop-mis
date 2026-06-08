@@ -2,16 +2,24 @@ package com.fashion.service.payment;
 
 import com.fashion.model.Order;
 import com.fashion.model.OrderItem;
+import com.fashion.model.User;
 import com.fashion.model.enums.OrderStatus;
+import com.fashion.model.enums.PaymentMethod;
 import com.fashion.repository.OrderHistoryRepository;
 import com.fashion.repository.OrderItemRepository;
 import com.fashion.repository.OrderRepository;
 import com.fashion.service.order.OrderManagementService;
+import com.fashion.util.SecurityUtils;
+import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
+import com.fashion.dto.response.PaymentResponseDTO;
+import org.springframework.security.access.AccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.HashMap;
@@ -136,5 +144,69 @@ class PaymentServiceImplTest {
         assertEquals("success", result);
         assertEquals(OrderStatus.PAID, mockOrderItem.getStatus());
         verify(orderItemRepository, times(1)).save(mockOrderItem);
+    }
+
+
+    @Test
+    void recreateMomoPayment_OrderNotFound_ThrowsException() {
+        try (MockedStatic<SecurityUtils> mockedSecurityUtils = mockStatic(SecurityUtils.class)) {
+            mockedSecurityUtils.when(SecurityUtils::getAuthenticatedUserId).thenReturn(1L);
+            when(orderRepository.findById(1L)).thenReturn(Optional.empty());
+
+            Exception exception = assertThrows(ResourceNotFoundException.class, () -> paymentService.recreateMomoPayment(1L));
+            assertEquals("Đơn hàng không tồn tại!", exception.getMessage());
+        }
+    }
+
+    @Test
+    void recreateMomoPayment_NotOwner_ThrowsException() {
+        try (MockedStatic<SecurityUtils> mockedSecurityUtils = mockStatic(SecurityUtils.class)) {
+            mockedSecurityUtils.when(SecurityUtils::getAuthenticatedUserId).thenReturn(2L);
+            User user = new User();
+            user.setId(1L);
+            mockOrder.setUser(user);
+            when(orderRepository.findById(1L)).thenReturn(Optional.of(mockOrder));
+
+            Exception exception = assertThrows(AccessDeniedException.class, () -> paymentService.recreateMomoPayment(1L));
+            assertEquals("Bạn không có quyền truy cập đơn hàng này!", exception.getMessage());
+        }
+    }
+
+    @Test
+    void recreateMomoPayment_InvalidStatus_ThrowsException() {
+        try (MockedStatic<SecurityUtils> mockedSecurityUtils = mockStatic(SecurityUtils.class)) {
+            mockedSecurityUtils.when(SecurityUtils::getAuthenticatedUserId).thenReturn(1L);
+            User user = new User();
+            user.setId(1L);
+            mockOrder.setUser(user);
+            mockOrder.setStatus(OrderStatus.PAID);
+            when(orderRepository.findById(1L)).thenReturn(Optional.of(mockOrder));
+
+            Exception exception = assertThrows(BadRequestException.class, () -> paymentService.recreateMomoPayment(1L));
+            assertEquals("Đơn hàng không đủ điều kiện để thanh toán lại", exception.getMessage());
+        }
+    }
+
+    @Test
+    void recreateMomoPayment_Success_ReturnsPaymentUrl() {
+        try (MockedStatic<SecurityUtils> mockedSecurityUtils = mockStatic(SecurityUtils.class)) {
+            mockedSecurityUtils.when(SecurityUtils::getAuthenticatedUserId).thenReturn(1L);
+            User user = new User();
+            user.setId(1L);
+            mockOrder.setUser(user);
+            mockOrder.setStatus(OrderStatus.PENDING_PAYMENT);
+            mockOrder.setPaymentMethod(PaymentMethod.MOMO);
+            mockOrder.setTotalAmount(100000.0);
+            
+            when(orderRepository.findById(1L)).thenReturn(Optional.of(mockOrder));
+            when(momoService.createPaymentUrl(1L, 100000.0)).thenReturn("http://mock-payment-url");
+
+            PaymentResponseDTO result = paymentService.recreateMomoPayment(1L);
+
+            assertNotNull(result);
+            assertEquals("SUCCESS", result.getStatus());
+            assertEquals("http://mock-payment-url", result.getPaymentUrl());
+            assertEquals("Tạo mới liên kết thanh toán thành công", result.getMessage());
+        }
     }
 }
