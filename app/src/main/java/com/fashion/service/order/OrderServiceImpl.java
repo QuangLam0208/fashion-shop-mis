@@ -3,12 +3,16 @@ package com.fashion.service.order;
 import com.fashion.dto.request.CancelOrderRequestDTO;
 import com.fashion.dto.request.PlaceOrderRequestDTO;
 import com.fashion.dto.response.*;
+import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.*;
 import com.fashion.model.enums.*;
 import com.fashion.repository.*;
 import com.fashion.service.notification.NotificationService;
 import com.fashion.service.payment.MomoService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,9 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import com.fashion.exception.BadRequestException;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +47,7 @@ public class OrderServiceImpl implements OrderService {
     public PlaceOrderResponseDTO placeOrder(PlaceOrderRequestDTO dto) {
         // 0. Tìm người dùng
         User user = userRepository.findById(dto.getUserId())
-                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại!"));
 
         // 1. Lấy danh sách sản phẩm trong giỏ hàng
         List<CartItem> cartItems = cartItemRepository.findAllById(dto.getCartItemIds());
@@ -65,7 +66,7 @@ public class OrderServiceImpl implements OrderService {
         for (CartItem item : cartItems) {
             ProductVariant variant = item.getProductVariant();
             if (variant.getStockQuantity() < item.getQuantity()) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "Sản phẩm " + variant.getProduct().getName() + " không đủ số lượng tồn kho!");
             }
             totalAmount += variant.getPrice() * item.getQuantity();
@@ -75,15 +76,15 @@ public class OrderServiceImpl implements OrderService {
         Coupon appliedCoupon = null;
         if (dto.getCouponCode() != null && !dto.getCouponCode().trim().isEmpty()) {
             Coupon coupon = couponRepository.findByCodeAndActiveTrue(dto.getCouponCode().trim())
-                    .orElseThrow(() -> new RuntimeException("Mã giảm giá không tồn tại hoặc đã bị khóa!"));
+                    .orElseThrow(() -> new BadRequestException("Mã giảm giá không tồn tại hoặc đã bị khóa!"));
 
             if (coupon.getExpiryDate().isBefore(Instant.now()) ||
                     coupon.getStartDate().isAfter(Instant.now())) {
-                throw new RuntimeException("Mã giảm giá không hợp lệ hoặc đã hết hạn!");
+                throw new BadRequestException("Mã giảm giá không hợp lệ hoặc đã hết hạn!");
             }
 
             if (coupon.getMinOrderAmount() != null && totalAmount < coupon.getMinOrderAmount()) {
-                throw new RuntimeException("Đơn hàng chưa đạt giá trị tối thiểu để áp dụng mã giảm giá này!");
+                throw new BadRequestException("Đơn hàng chưa đạt giá trị tối thiểu để áp dụng mã giảm giá này!");
             }
 
             if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
@@ -99,7 +100,7 @@ public class OrderServiceImpl implements OrderService {
             userCouponRepository.findByUserIdAndCouponCode(user.getId(), dto.getCouponCode().trim())
                     .ifPresent(uc -> {
                         if (uc.isUsed()) {
-                            throw new RuntimeException("Mã giảm giá này đã được sử dụng!");
+                            throw new BadRequestException("Mã giảm giá này đã được sử dụng!");
                         }
                     });
 
@@ -146,11 +147,8 @@ public class OrderServiceImpl implements OrderService {
             boolean hasStock = parentProduct.getVariants().stream()
                     .anyMatch(v -> v.getStockQuantity() != null && v.getStockQuantity() > 0);
 
-            if (!hasStock
-                    && parentProduct.getStatus() == ProductStatus.ACTIVE) {
+            if (!hasStock && parentProduct.getStatus() == ProductStatus.ACTIVE) {
                 parentProduct.setStatus(ProductStatus.OUT_OF_STOCK);
-                // JPA context will auto update the parentProduct when transaction commits,
-                // but if we had productRepository we could optionally call .save()
             }
         }
 
@@ -185,7 +183,7 @@ public class OrderServiceImpl implements OrderService {
                 .orderId(order.getId())
                 .totalAmount(order.getTotalAmount())
                 .status(order.getStatus())
-                .paymentUrl(paymentUrl) // Vẫn giữ để tương thích nếu FE muốn redirect ngay
+                .paymentUrl(paymentUrl)
                 .message(order.getPaymentMethod() == PaymentMethod.MOMO
                         ? "Đơn hàng đã được khởi tạo. Vui lòng thanh toán trong vòng 10 phút."
                         : "Đặt hàng thành công! Đơn hàng của bạn đang chờ xác nhận.")
@@ -196,22 +194,22 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public String retryPayment(Long userId, Long orderId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại!"));
 
         // Bảo mật: Kiểm tra đơn hàng có thuộc về User này không
         if (!order.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Bạn không có quyền thanh toán đơn hàng này!");
+            throw new BadRequestException("Bạn không có quyền thanh toán đơn hàng này!");
         }
 
         // Kiểm tra xem đơn hàng còn trong trạng thái PENDING_PAYMENT không
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
-            throw new RuntimeException("Đơn hàng này không ở trạng thái chờ thanh toán!");
+            throw new BadRequestException("Đơn hàng này không ở trạng thái chờ thanh toán!");
         }
 
         // Kiểm tra hết hạn (10 phút)
         long minutesElapsed = Duration.between(order.getOrderDate(), Instant.now()).toMinutes();
         if (minutesElapsed > 10) {
-            throw new RuntimeException("Yêu cầu thanh toán đã hết hạn (quá 10 phút)!");
+            throw new BadRequestException("Yêu cầu thanh toán đã hết hạn (quá 10 phút)!");
         }
 
         return momoService.createPaymentUrl(order.getId(), order.getTotalAmount());
@@ -221,7 +219,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void revertInventory(Long orderId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại!"));
 
         for (OrderItem item : order.getOrderItems()) {
             ProductVariant variant = item.getProductVariant();
@@ -287,8 +285,7 @@ public class OrderServiceImpl implements OrderService {
                     statuses, false, pageable);
         } else {
             // Trường hợp: Các tab khác (shipped, processing, etc. - không lọc isReviewed)
-            // Nếu statuses chỉ chứa DELIVERED hoặc COMPLETED (Tab Đánh giá mặc định), chỉ
-            // lấy sản phẩm chưa đánh giá
+            // Nếu statuses chỉ chứa DELIVERED hoặc COMPLETED (Tab Đánh giá mặc định), chỉ lấy sản phẩm chưa đánh giá
             boolean isReviewTab = statuses != null
                     && (statuses.contains(OrderStatus.DELIVERED) || statuses.contains(OrderStatus.COMPLETED))
                     && statuses.size() <= 2;
@@ -332,7 +329,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderDetailResponseDTO getMyOrderDetail(Long userId, Long orderId) {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(
-                        () -> new RuntimeException("Đơn hàng không tồn tại hoặc không thuộc quyền sở hữu của bạn!"));
+                        () -> new ResourceNotFoundException("Đơn hàng không tồn tại hoặc không thuộc quyền sở hữu của bạn!"));
 
         List<OrderDetailResponseDTO.OrderItemDTO> itemDTOs = order.getOrderItems().stream()
                 .map(item -> {
@@ -416,9 +413,13 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public MessageResponseDTO cancelOrder(Long userId, Long orderId, CancelOrderRequestDTO dto) {
-        Order order = orderRepository.findByIdAndUserId(orderId, userId)
-                .orElseThrow(
-                        () -> new RuntimeException("Đơn hàng không tồn tại hoặc không thuộc quyền sở hữu của bạn!"));
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại!"));
+
+        // 1. Kiểm tra quyền sở hữu
+        if (!order.getUser().getId().equals(userId)) {
+            throw new BadRequestException("Bạn không có quyền hủy đơn hàng này!");
+        }
 
         Set<OrderStatus> cancellableStatuses = Set.of(
                 OrderStatus.PENDING_PAYMENT,
@@ -426,18 +427,23 @@ public class OrderServiceImpl implements OrderService {
                 OrderStatus.PAID,
                 OrderStatus.PROCESSING);
 
+        // 2. Kiểm tra trạng thái đơn hàng
+        if (!cancellableStatuses.contains(order.getStatus())) {
+            throw new BadRequestException("Đơn hàng đang ở trạng thái " + order.getStatus() + ", không thể hủy!");
+        }
+
         boolean hasRefund = false;
         boolean refundFailed = false;
 
-        for (OrderItem item : order.getOrderItems()) {
-            if (!cancellableStatuses.contains(item.getStatus())) {
-                throw new RuntimeException("Sản phẩm '" + item.getProductName() + "' ở trạng thái "
-                        + item.getStatus() + " không thể hủy!");
-            }
+        // 3. Cập nhật trạng thái Order chính thành CANCELLED
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
 
+        // 4. Xử lý từng OrderItem
+        for (OrderItem item : order.getOrderItems()) {
             OrderStatus previousStatus = item.getStatus();
 
-            // Nếu item đã thanh toán online → hoàn tiền
+            // Nếu item đã thanh toán online → cần hoàn tiền
             if (previousStatus == OrderStatus.PAID && order.getPaymentMethod() != PaymentMethod.COD) {
                 try {
                     item.setRefundStatus(RefundStatus.PENDING);
@@ -452,7 +458,7 @@ public class OrderServiceImpl implements OrderService {
             item.setCancellationReason(dto.getCancellationReason());
             orderItemRepository.save(item);
 
-            // Lưu lịch sử chuyển trạng thái
+            // Lưu lịch sử
             OrderHistory history = OrderHistory.builder()
                     .orderItem(item)
                     .previousStatus(previousStatus)
@@ -461,17 +467,22 @@ public class OrderServiceImpl implements OrderService {
                     .build();
             orderHistoryRepository.save(history);
 
-            // Hoàn lại tồn kho
+            // 5. Hoàn lại tồn kho và cập nhật Product cha
             if (item.getProductVariant() != null) {
                 ProductVariant variant = item.getProductVariant();
                 variant.setStockQuantity(variant.getStockQuantity() + item.getQuantity().intValue());
                 productVariantRepository.save(variant);
+
+                Product parentProduct = variant.getProduct();
+                if (parentProduct != null && parentProduct.getStatus() == ProductStatus.OUT_OF_STOCK) {
+                    parentProduct.setStatus(ProductStatus.ACTIVE);
+                }
             }
         }
 
         String message = "Hủy đơn hàng thành công!";
 
-        // Gửi thông báo hủy đơn
+        // Gửi thông báo
         notificationService.createNotification(
                 order.getUser(),
                 "Đơn hàng đã được hủy",
