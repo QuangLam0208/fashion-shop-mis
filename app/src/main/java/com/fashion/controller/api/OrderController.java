@@ -55,7 +55,7 @@ public class OrderController {
     }
 
     // XEM CHI TIẾT ĐƠN HÀNG
-    @GetMapping("/history/{orderId}")
+    @GetMapping("/{orderId}")
     public ResponseEntity<OrderDetailResponseDTO> getMyOrderDetail(@PathVariable Long orderId) {
         // Lấy ID người dùng đang đăng nhập từ token
         Long currentUserId = SecurityUtils.getAuthenticatedUserId();
