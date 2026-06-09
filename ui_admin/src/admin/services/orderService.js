@@ -15,14 +15,18 @@ export const orderService = {
   },
 
   /** Cập nhật trạng thái TOÀN BỘ đơn hàng */
-  updateOrderStatus: async (orderId, status) => {
-    const res = await axiosInstance.patch(`/api/admin/orders/${orderId}/status?status=${status}`);
+  updateOrderStatus: async (payload) => {
+    // payload: { orderId: 101, status: "SHIPPING" }
+    const res = await axiosInstance.put('/api/admin/orders/status', payload);
     return res.data;
   },
 
   /** Cập nhật trạng thái TỪNG ITEM trong đơn hàng */
-  updateOrderItemStatus: async (itemId, status) => {
-    const res = await axiosInstance.patch(`/api/admin/orders/items/${itemId}/status?status=${status}`);
+  updateOrderItemStatus: async (itemId, targetStatus) => {
+    // Gọi PATCH /api/admin/orders/items/{itemId}/status?status=COMPLETED
+    const res = await axiosInstance.patch(`/api/admin/orders/items/${itemId}/status`, null, {
+      params: { status: targetStatus }
+    });
     return res.data;
   },
   
