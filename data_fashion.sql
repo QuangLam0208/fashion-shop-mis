@@ -198,13 +198,12 @@ INSERT INTO `addresses` (`address_id`, `user_id`, `full_address`, `receiver_name
 -- ========================================================
 -- 7. COUPONS & USER_COUPONS
 -- ========================================================
-INSERT INTO `coupons` (`coupon_id`, `code`, `discount_type`, `discount_value`, `min_order_amount`, `usage_limit`, `start_date`, `expiry_date`, `active`) VALUES
-(1, 'WELCOME50', 'FIXED_AMOUNT', 50000, 200000, 1000, '2023-01-01', '2026-12-31', 1),
-(2, 'SUMMER20', 'PERCENTAGE', 20, 500000, 500, '2024-05-01', '2025-08-31', 1),
-(3, 'FREESHIP', 'FIXED_AMOUNT', 30000, 150000, 2000, '2024-01-01', '2026-12-31', 1),
-(4, 'VIP100K', 'FIXED_AMOUNT', 100000, 1000000, 50, '2024-01-01', '2025-12-31', 1),
-(5, 'BLACKFRIDAY', 'PERCENTAGE', 50, 0, 10, '2024-11-20', '2024-11-30', 0);
-
+INSERT INTO `coupons` (`coupon_id`, `code`, `discount_type`, `discount_value`, `min_order_amount`, `usage_limit`, `used_count`, `start_date`, `expiry_date`, `active`) VALUES
+(1, 'WELCOME50', 'FIXED_AMOUNT', 50000, 200000, 1000, 0, '2023-01-01', '2026-12-31', 1),
+(2, 'SUMMER20', 'PERCENTAGE', 20, 500000, 500, 0, '2024-05-01', '2025-08-31', 1),
+(3, 'FREESHIP', 'FIXED_AMOUNT', 30000, 150000, 2000, 0, '2024-01-01', '2026-12-31', 1),
+(4, 'VIP100K', 'FIXED_AMOUNT', 100000, 1000000, 50, 0, '2024-01-01', '2025-12-31', 1),
+(5, 'BLACKFRIDAY', 'PERCENTAGE', 50, 0, 10, 0, '2024-11-20', '2024-11-30', 0);
 INSERT INTO `user_coupons` (`user_coupon_id`, `user_id`, `coupon_id`, `used`) VALUES
 (1, 3, 1, 1), (2, 4, 1, 0), (3, 5, 2, 1), (4, 6, 3, 0), (5, 8, 4, 1);
 
