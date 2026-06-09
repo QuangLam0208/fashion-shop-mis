@@ -331,4 +331,76 @@ INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `type`, `relat
 -- ========================================================
 -- Bật lại kiểm tra khóa ngoại
 -- ========================================================
+INSERT INTO `users` (`user_id`, `email`, `full_name`, `password`, `phone`, `role`, `status`, `email_verified`, `two_factor_enabled`) VALUES 
+(41, 'khach41@gmail.com', 'Hoàng Thái Bình', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000041', 'CUSTOMER', 'ACTIVE', 1, 0), 
+(42, 'khach42@gmail.com', 'Lý Thu Thảo', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000042', 'CUSTOMER', 'ACTIVE', 1, 0), 
+(43, 'khach43@gmail.com', 'Trần Hữu Khang', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000043', 'CUSTOMER', 'BLOCKED', 1, 0), 
+(44, 'khach44@gmail.com', 'Phạm Trà My', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000044', 'CUSTOMER', 'ACTIVE', 1, 0), 
+(45, 'khach45@gmail.com', 'Nguyễn Tiến Dũng', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000045', 'CUSTOMER', 'ACTIVE', 1, 0), 
+(46, 'khach46@gmail.com', 'Vũ Tuấn Anh', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000046', 'CUSTOMER', 'PENDING', 0, 0), 
+(47, 'khach47@gmail.com', 'Đinh Thanh Tùng', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000047', 'CUSTOMER', 'ACTIVE', 1, 0), 
+(48, 'khach48@gmail.com', 'Lê Hoài Thu', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000048', 'CUSTOMER', 'ACTIVE', 1, 0), 
+(49, 'khach49@gmail.com', 'Ngô Bá Khá', '$2a$10$wY1txQsroSlcdRys6q.CQuDk9Y4K4nJk6zX4/zH5J4g5r4p/K3zI6', '0901000049', 'CUSTOMER', 'ACTIVE', 1, 0);
+
+-- ========================================================
+-- 3. THÊM SẢN PHẨM & BIẾN THỂ (Sản phẩm 31-36, Biến thể 46-55)
+-- ========================================================
+INSERT INTO `products` (`product_id`, `category_id`, `name`, `description`, `status`) VALUES
+(31, 6, 'Áo Thun Cổ Tim Nữ', 'Áo thun nữ dáng ôm nhẹ nhàng.', 'ACTIVE'),
+(32, 7, 'Váy Chữ A Điệu Đà', 'Váy thiết kế dáng chữ A dễ mặc.', 'ACTIVE'),
+(33, 9, 'Túi Trống Thể Thao', 'Túi đeo chéo đựng đồ tập gym, đá bóng.', 'ACTIVE'),
+(34, 12, 'Giày Lười Nam Moca', 'Giày da bò nguyên tấm êm ái.', 'ACTIVE'),
+(35, 5, 'Quần Đùi Thể Thao Nam', 'Quần đùi vải dù thoáng mát.', 'ACTIVE'),
+(36, 11, 'Bông Tai Kim Loại', 'Bông tai mạ vàng hợp kim phong cách Hàn Quốc.', 'ACTIVE');
+
+INSERT INTO `product_variants` (`variant_id`, `product_id`, `color`, `size`, `price`, `stock_quantity`) VALUES
+(46, 31, 'Hồng Nhạt', 'M', 130000, 100), (47, 31, 'Trắng', 'S', 130000, 50),
+(48, 32, 'Đen', 'M', 280000, 30), (49, 32, 'Caro Đỏ', 'L', 290000, 20),
+(50, 33, 'Đen', 'Freesize', 250000, 80),
+(51, 34, 'Nâu', '40', 850000, 15), (52, 34, 'Đen', '41', 850000, 25),
+(53, 35, 'Đen', 'XL', 150000, 120), (54, 35, 'Xám', 'L', 150000, 60),
+(55, 36, 'Vàng', 'Freesize', 80000, 200);
+
+-- ========================================================
+-- 4. THÊM ĐƠN HÀNG (ID 31 - 45)
+-- ========================================================
+INSERT INTO `orders` (`order_id`, `user_id`, `coupon_id`, `total_amount`, `status`, `payment_method`, `type`, `order_date`, `shipping_address`, `hidden_by_user`) VALUES
+(31, 3, NULL, 200000, 'CONFIRMED', 'COD', 'ONLINE', '2024-06-01 10:00:00', '12A Nguyễn Văn Cừ, Q5, TP.HCM', 0),
+(32, 4, NULL, 450000, 'CONFIRMED', 'BANK_TRANSFER', 'ONLINE', '2024-06-02 14:30:00', '45B Lê Lợi, Q1, TP.HCM', 0),
+(33, 5, NULL, 300000, 'RETURNED', 'VNPAY', 'ONLINE', '2024-05-15 09:15:00', '99 Trần Hưng Đạo, Hoàn Kiếm, HN', 0),
+(34, 6, NULL, 550000, 'RETURNED', 'MOMO', 'ONLINE', '2024-05-16 16:45:00', 'KDC Trung Sơn, Bình Chánh, TP.HCM', 0),
+(35, 41, NULL, 130000, 'DELIVERED', 'COD', 'ONLINE', '2024-06-05 08:30:00', '123 Cầu Giấy, HN', 0),
+(36, 42, 1, 410000, 'PROCESSING', 'MOMO', 'ONLINE', '2024-06-06 09:15:00', '45 Lê Duẩn, Đà Nẵng', 0),
+(37, 44, NULL, 280000, 'CONFIRMED', 'VNPAY', 'ONLINE', '2024-06-07 14:00:00', 'Quận 1, TP.HCM', 0),
+(38, 45, NULL, 850000, 'PENDING_PAYMENT', 'BANK_TRANSFER', 'ONLINE', '2024-06-08 10:20:00', 'KĐT Định Công, HN', 0),
+(39, 47, NULL, 150000, 'CANCELLED', 'COD', 'ONLINE', '2024-06-09 16:45:00', 'Bình Thủy, Cần Thơ', 0),
+(40, 48, NULL, 330000, 'SHIPPING', 'COD', 'ONLINE', '2024-06-10 11:30:00', 'Tân Bình, TP.HCM', 0),
+(41, 49, NULL, 80000, 'COMPLETED', 'MOMO', 'ONLINE', '2024-06-11 15:00:00', 'Thủ Đức, TP.HCM', 0),
+(42, 12, NULL, 250000, 'RETURNED', 'BANK_TRANSFER', 'ONLINE', '2024-05-20 09:00:00', 'Ba Đình, HN', 0),
+(43, 14, NULL, 580000, 'CONFIRMED', 'COD', 'ONLINE', '2024-06-12 08:00:00', 'Gò Vấp, TP.HCM', 0),
+(44, 25, NULL, 850000, 'PAYMENT_FAILED', 'VNPAY', 'ONLINE', '2024-06-12 19:30:00', 'Nha Trang, Khánh Hòa', 0),
+(45, 8, NULL, 150000, 'DELIVERED', 'COD', 'ONLINE', '2024-06-13 14:25:00', 'Nam Từ Liêm, HN', 0);
+
+-- ========================================================
+-- 5. THÊM CHI TIẾT ĐƠN HÀNG (ID 33 - 50)
+-- ========================================================
+INSERT INTO `order_items` (`order_item_id`, `order_id`, `variant_id`, `product_name`, `quantity`, `price`, `status`, `refund_status`, `is_reviewed`, `cancellation_reason`) VALUES 
+(33, 31, 14, 'Áo Trễ Vai Nữ Tính', 1, 200000, 'CONFIRMED', 'NONE', 0, NULL),
+(34, 32, 6, 'Áo Khoác Bomber', 1, 450000, 'CONFIRMED', 'NONE', 0, NULL),
+(35, 33, 16, 'Áo Sơ Mi Lụa', 1, 300000, 'RETURNED', 'COMPLETED', 0, NULL),
+(36, 34, 41, 'Áo Blazer Nữ', 1, 550000, 'RETURNED', 'COMPLETED', 0, NULL),
+(37, 35, 46, 'Áo Thun Cổ Tim Nữ', 1, 130000, 'DELIVERED', 'NONE', 0, NULL), 
+(38, 36, 48, 'Váy Chữ A Điệu Đà', 1, 280000, 'PROCESSING', 'NONE', 0, NULL), 
+(39, 36, 46, 'Áo Thun Cổ Tim Nữ', 1, 130000, 'PROCESSING', 'NONE', 0, NULL), 
+(40, 37, 48, 'Váy Chữ A Điệu Đà', 1, 280000, 'CONFIRMED', 'NONE', 0, NULL), 
+(41, 38, 51, 'Giày Lười Nam Moca', 1, 850000, 'PENDING_PAYMENT', 'NONE', 0, NULL), 
+(42, 39, 53, 'Quần Đùi Thể Thao Nam', 1, 150000, 'CANCELLED', 'NONE', 0, 'Phí ship cao'), 
+(43, 40, 50, 'Túi Trống Thể Thao', 1, 250000, 'SHIPPING', 'NONE', 0, NULL), 
+(44, 40, 55, 'Bông Tai Kim Loại', 1, 80000, 'SHIPPING', 'NONE', 0, NULL), 
+(45, 41, 55, 'Bông Tai Kim Loại', 1, 80000, 'COMPLETED', 'NONE', 1, NULL), 
+(46, 42, 50, 'Túi Trống Thể Thao', 1, 250000, 'RETURNED', 'COMPLETED', 0, 'Giao nhầm màu'), 
+(47, 43, 49, 'Váy Chữ A Điệu Đà', 1, 290000, 'CONFIRMED', 'NONE', 0, NULL), 
+(48, 43, 49, 'Váy Chữ A Điệu Đà', 1, 290000, 'CONFIRMED', 'NONE', 0, NULL), 
+(49, 44, 52, 'Giày Lười Nam Moca', 1, 850000, 'PAYMENT_FAILED', 'NONE', 0, NULL), 
+(50, 45, 54, 'Quần Đùi Thể Thao Nam', 1, 150000, 'DELIVERED', 'NONE', 0, NULL);
 SET FOREIGN_KEY_CHECKS = 1;
