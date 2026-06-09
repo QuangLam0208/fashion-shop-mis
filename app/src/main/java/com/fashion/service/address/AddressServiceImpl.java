@@ -10,6 +10,7 @@ import com.fashion.model.User;
 import com.fashion.repository.AddressRepository;
 import com.fashion.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -110,6 +111,12 @@ public class AddressServiceImpl implements AddressService{
 
         addressRepository.saveAll(existingAddresses);
 
+        return mapToDTO(address);
+    }
+
+    public AddressResponseDTO getUserAddress(Long userId, Long addressId) {
+        Address address = addressRepository.findByIdAndUserId(addressId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Địa chỉ không tồn tại hoặc không thuộc quyền sở hữu!"));
         return mapToDTO(address);
     }
 }
