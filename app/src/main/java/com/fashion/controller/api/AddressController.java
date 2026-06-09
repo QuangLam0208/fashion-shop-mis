@@ -21,7 +21,7 @@ public class AddressController {
     private final AddressService addressService;
 
     // 1. Lấy danh sách địa chỉ
-    @GetMapping(value = "/get")
+    @GetMapping(value = "/list")
     public ResponseEntity<List<AddressResponseDTO>> getMyAddresses() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(addressService.getUserAddresses(userId));
@@ -56,5 +56,12 @@ public class AddressController {
     public ResponseEntity<AddressResponseDTO> setDefaultAddress(@PathVariable Long id) {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(addressService.setDefaultAddress(userId, id));
+    }
+
+    // 6. Lấy danh sách địa chỉ
+    @GetMapping(value = "/get/{addressId}")
+    public ResponseEntity<AddressResponseDTO> getMyAddress(@PathVariable Long addressId) {
+        Long userId = SecurityUtils.getAuthenticatedUserId();
+        return ResponseEntity.ok(addressService.getUserAddress(userId, addressId));
     }
 }

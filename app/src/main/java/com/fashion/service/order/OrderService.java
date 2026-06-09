@@ -12,6 +12,8 @@ import java.util.List;
 public interface OrderService {
     // Đặt hàng
     PlaceOrderResponseDTO placeOrder(PlaceOrderRequestDTO dto);
+    // Phương thức mới: Lấy danh sách lịch sử đơn hàng không phân trang
+    List<OrderSummaryResponseDTO> getCustomerOrderHistory(Long userId);
 
     // Theo dõi trạng thái đơn hàng - Xem danh sách đơn hàng
     Page<OrderSummaryResponseDTO> getMyOrders(Long userId, List<OrderStatus> statuses, Pageable pageable);
@@ -20,7 +22,7 @@ public interface OrderService {
     Page<OrderItemSummaryDTO> getMyOrderItems(Long userId, List<OrderStatus> statuses, Boolean reviewed,
                                               Pageable pageable);
 
-    // Theo dõi trạng thái đơn hàng - Xem chi tiết đơn hàng
+    // Xem chi tiết đơn hàng
     OrderDetailResponseDTO getMyOrderDetail(Long userId, Long orderId);
 
     // Hủy đơn hàng
