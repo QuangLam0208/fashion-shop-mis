@@ -2,12 +2,12 @@ import axiosInstance from '../../shared/config/axiosInstance';
 
 export const customerOrderService = {
   // Lấy danh sách lịch sử đơn hàng (Backend tự lấy userId từ Token - Đảm bảo AC-US28-01)
-  getOrders: async () => {
-    const res = await axiosInstance.get('/api/orders/history');
-    // Xử lý linh hoạt cấu trúc BaseResponse<List<OrderSummaryDTO>>
+  getOrders: async (params) => {
+    // TRUYỀN params vào cấu hình của axios
+    const res = await axiosInstance.get('/api/orders/list', { params });
+    // Dữ liệu trả về sẽ có cấu trúc { content: [...], totalPages: ... }
     return res.data || res; 
   },
-
   // Lấy chi tiết đơn hàng
   getOrderDetail: async (id) => {
     const res = await axiosInstance.get(`/api/orders/${id}`);
@@ -16,8 +16,8 @@ export const customerOrderService = {
   
   // API Hủy đơn hàng (giữ nguyên từ US-27)
   cancelOrder: async (payload) => {
-    const { orderId, reason } = payload;
-    const res = await axiosInstance.post(`/api/orders/${orderId}/cancel`, { reason });
+    const { orderId, cancellationReason } = payload;
+    const res = await axiosInstance.post(`/api/orders/${orderId}/cancel`, { cancellationReason });
     return res.data;
   }
 };
