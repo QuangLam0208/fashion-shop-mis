@@ -13,6 +13,7 @@ import com.fashion.service.payment.MomoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -198,7 +199,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Bảo mật: Kiểm tra đơn hàng có thuộc về User này không
         if (!order.getUser().getId().equals(userId)) {
-            throw new BadRequestException("Bạn không có quyền thanh toán đơn hàng này!");
+            throw new AccessDeniedException("Bạn không có quyền thanh toán đơn hàng này!");
         }
 
         // Kiểm tra xem đơn hàng còn trong trạng thái PENDING_PAYMENT không
@@ -229,6 +230,19 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // THEO DÕI TRẠNG THÁI ĐƠN HÀNG - Xem danh sách
+
+    // AC-BE-US28-01: Phát triển phương thức tìm kiếm danh sách lịch sử đơn hàng
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderSummaryResponseDTO> getCustomerOrderHistory(Long userId) {
+        // Lấy danh sách tất cả đơn hàng của user, không phân trang, sắp xếp mới nhất lên đầu
+        // Yêu cầu: Cần đảm bảo phương thức findByUserIdOrderByOrderDateDesc đã được khai báo trong OrderRepository
+        List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
+
+        return orders.stream()
+                .map(this::convertToSummaryDTO)
+                .collect(Collectors.toList());
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -329,9 +343,9 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại!"));
 
-        // AC-BE-US28-02: Kiểm tra quyền sở hữu, nếu không thuộc về User hiện tại thì ném lỗi bảo mật
+        // AC-BE-US28-02: Kiểm tra quyền sở hữu, nếu không thuộc về User hiện tại thì ném lỗi AccessDeniedException (403 Forbidden)
         if (!order.getUser().getId().equals(userId)) {
-            throw new BadRequestException("Truy cập bị từ chối: Đơn hàng này không thuộc quyền sở hữu của bạn!");
+            throw new AccessDeniedException("Truy cập bị từ chối: Đơn hàng này không thuộc quyền sở hữu của bạn!");
         }
 
         List<OrderDetailResponseDTO.OrderItemDTO> itemDTOs = order.getOrderItems().stream()
@@ -419,7 +433,7 @@ public class OrderServiceImpl implements OrderService {
 
         // 1. Kiểm tra quyền sở hữu
         if (!order.getUser().getId().equals(userId)) {
-            throw new BadRequestException("Bạn không có quyền hủy đơn hàng này!");
+            throw new AccessDeniedException("Bạn không có quyền hủy đơn hàng này!");
         }
 
         Set<OrderStatus> cancellableStatuses = Set.of(
