@@ -46,7 +46,7 @@ const OrderDetailPage = () => {
     try {
       await customerOrderService.cancelOrder({
         orderId: id,
-        reason: cancelReason.trim()
+        cancellationReason: cancelReason.trim()
       });
       message.success('Hủy đơn hàng thành công!');
       setCancelModalVisible(false);

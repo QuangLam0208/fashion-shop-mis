@@ -37,6 +37,7 @@ const ORDER_TABS = [
   { key: '', label: 'Tất cả' },
   { key: 'PENDING_CONFIRMATION', label: 'Chờ xác nhận' },
   { key: 'PENDING_PAYMENT', label: 'Chờ thanh toán' },
+  { key: 'PAID', label: 'Đã thanh toán' },
   { key: 'PROCESSING', label: 'Đang xử lý' },
   { key: 'SHIPPING', label: 'Đang giao hàng' },
   { key: 'DELIVERED', label: 'Đã giao hàng' },
@@ -60,14 +61,18 @@ const CustomerOrderListPage = () => {
     setLoading(true);
     try {
       const params = { page: 0, size: 50 }; 
+      
+      // LOGIC MỚI: Chỉ thêm statuses khi activeTab có giá trị (không phải tab Tất cả)
       if (activeTab) {
-        params.status = activeTab; // Đổi param thành status cho chuẩn Backend
+        // Đổi từ params.status thành params.statuses cho khớp với Backend
+        // Axios sẽ tự động xử lý chuỗi này thành dạng ?statuses=PENDING_CONFIRMATION
+        params.statuses = activeTab; 
       }
-      // SỬA LỖI: Đổi thành getOrders cho đúng với file Service
+
       const res = await customerOrderService.getOrders(params);
       
-      // SỬA LỖI: Safe check chống mảng rỗng gây trắng trang
-      setOrders(res?.items || res?.content || res || []);
+      // Lấy dữ liệu từ mảng content theo đúng cấu trúc { content: Array, totalPages: number }
+      setOrders(res?.content || res?.items || res || []);
     } catch (error) {
       message.error('Không thể tải danh sách đơn hàng');
     } finally {
@@ -97,7 +102,7 @@ const CustomerOrderListPage = () => {
       // SỬA LỖI: Truyền Object Payload có chứa Reason
       await customerOrderService.cancelOrder({
         orderId: cancelOrderId,
-        reason: cancelReason.trim()
+        cancellationReason: cancelReason.trim()
       });
       message.success('Hủy đơn hàng thành công!');
       setCancelModalVisible(false);

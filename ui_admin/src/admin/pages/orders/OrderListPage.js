@@ -96,7 +96,7 @@ const OrderListPage = () => {
           type="primary" 
           icon={<EyeOutlined />} 
           size="small"
-          onClick={() => navigate(`/admin/orders/${record.id}`)}
+          onClick={() => navigate(`/admin/orders/${record.orderId}`)}
         >
           Chi tiết
         </Button>
