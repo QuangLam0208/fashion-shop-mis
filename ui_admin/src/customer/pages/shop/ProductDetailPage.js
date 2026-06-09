@@ -6,6 +6,7 @@ import { shopProductService } from '../../services/shopProductService';
 import useCart from '../../hooks/useCart';
 import { formatCurrency } from '../../../shared/utils/formatters';
 import ProductCard from '../../components/ProductCard'; // Import ProductCard để hiển thị sp liên quan
+import QuantityInput from '../../components/QuantityInput';
 
 const { Text, Paragraph } = Typography;
 
@@ -183,17 +184,11 @@ const ProductDetailPage = () => {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
                 <div style={{ fontWeight: 600 }}>Số lượng:</div>
-                <InputNumber 
-                  min={1}
+                <QuantityInput
                   value={quantity} 
-                  onChange={(val) => setQuantity(val)}
-                  onBlur={() => {
-                    if (!quantity || quantity < 1) {
-                      setQuantity(1);
-                    }
-                  }}
-                  size="large"
-                  disabled={isOutOfStock}
+                  onChange={(val) => setQuantity(val)} 
+                  min={1}
+                  max={selectedVariant.stockQuantity}
                 />
                 <span style={{ color: '#64748b' }}>{displayStock} sản phẩm có sẵn</span>
               </div>
