@@ -172,5 +172,94 @@ public class CouponServiceImplTest {
         ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
                 () -> couponService.toggleCouponStatus(99L));
         assertEquals("Mã giảm giá không tồn tại!", ex.getMessage());
+      
+    @Test
+    void createCoupon_Success() {
+        com.fashion.dto.request.CreateCouponRequestDTO request = com.fashion.dto.request.CreateCouponRequestDTO.builder()
+                .code("NEWCODE")
+                .discountValue(20.0)
+                .discountType(DiscountType.PERCENTAGE)
+                .startDate(Instant.now().plusSeconds(3600))
+                .expiryDate(Instant.now().plusSeconds(7200))
+                .minOrderAmount(100000.0)
+                .usageLimit(50)
+                .active(true)
+                .build();
+
+        Coupon savedCoupon = Coupon.builder()
+                .id(2L).code("NEWCODE").discountValue(20.0)
+                .discountType(DiscountType.PERCENTAGE)
+                .build();
+
+        when(couponRepository.existsByCode("NEWCODE")).thenReturn(false);
+        when(couponRepository.save(any(Coupon.class))).thenReturn(savedCoupon);
+
+        com.fashion.dto.response.CouponResponseDTO response = couponService.createCoupon(request);
+
+        assertNotNull(response);
+        assertEquals("NEWCODE", response.getCode());
+        assertEquals(20.0, response.getDiscountValue());
+    }
+
+    @Test
+    void createCoupon_DuplicateCode_ThrowsBadRequest() {
+        com.fashion.dto.request.CreateCouponRequestDTO request = com.fashion.dto.request.CreateCouponRequestDTO.builder()
+                .code("EXISTINGCODE")
+                .build();
+
+        when(couponRepository.existsByCode("EXISTINGCODE")).thenReturn(true);
+
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> couponService.createCoupon(request));
+        assertEquals("This coupon code already exists in the system!", ex.getMessage());
+    }
+
+    @Test
+    void createCoupon_InvalidDateRange_ThrowsBadRequest() {
+        com.fashion.dto.request.CreateCouponRequestDTO request = com.fashion.dto.request.CreateCouponRequestDTO.builder()
+                .code("NEWCODE")
+                .startDate(Instant.now().plusSeconds(7200)) // Start later
+                .expiryDate(Instant.now().plusSeconds(3600)) // End earlier
+                .build();
+
+        when(couponRepository.existsByCode("NEWCODE")).thenReturn(false);
+
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> couponService.createCoupon(request));
+        assertEquals("Invalid date range: End date must be later than start date", ex.getMessage());
+    }
+
+    @Test
+    void createCoupon_PercentageExceeds100_ThrowsBadRequest() {
+        com.fashion.dto.request.CreateCouponRequestDTO request = com.fashion.dto.request.CreateCouponRequestDTO.builder()
+                .code("NEWCODE")
+                .discountType(DiscountType.PERCENTAGE)
+                .discountValue(150.0) // Invalid percentage
+                .startDate(Instant.now().plusSeconds(3600))
+                .expiryDate(Instant.now().plusSeconds(7200))
+                .build();
+
+        when(couponRepository.existsByCode("NEWCODE")).thenReturn(false);
+
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> couponService.createCoupon(request));
+        assertEquals("Discount percentage must be between 1 and 100", ex.getMessage());
+    }
+
+    @Test
+    void createCoupon_PercentageLessThan1_ThrowsBadRequest() {
+        com.fashion.dto.request.CreateCouponRequestDTO request = com.fashion.dto.request.CreateCouponRequestDTO.builder()
+                .code("NEWCODE")
+                .discountType(DiscountType.PERCENTAGE)
+                .discountValue(0.5) // Invalid percentage
+                .startDate(Instant.now().plusSeconds(3600))
+                .expiryDate(Instant.now().plusSeconds(7200))
+                .build();
+
+        when(couponRepository.existsByCode("NEWCODE")).thenReturn(false);
+
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> couponService.createCoupon(request));
+        assertEquals("Discount percentage must be between 1 and 100", ex.getMessage());
     }
 }

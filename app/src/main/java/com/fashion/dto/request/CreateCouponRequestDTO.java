@@ -30,6 +30,7 @@ public class CreateCouponRequestDTO {
     private Instant startDate;
 
     @NotNull(message = "Ngày hết hạn không được để trống")
+    @Future(message = "Ngày hết hạn phải ở trong tương lai")
     private Instant expiryDate;
 
     @PositiveOrZero(message = "Giá trị đơn hàng tối thiểu không được âm")
