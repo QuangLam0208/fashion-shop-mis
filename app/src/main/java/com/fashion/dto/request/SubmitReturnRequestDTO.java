@@ -29,6 +29,7 @@ public class SubmitReturnRequestDTO {
     @Size(max = 1000, message = "Mô tả chi tiết tối đa 1000 ký tự")
     private String description;
 
-    @Size(max = 5, message = "Tối đa 5 ảnh minh họa")
+    @NotEmpty(message = "Phải có ít nhất 1 ảnh minh họa")
+    @Size(min = 1, max = 10, message = "Số lượng ảnh minh họa từ 1 đến 10 ảnh")
     private List<String> imageUrls;
 }
