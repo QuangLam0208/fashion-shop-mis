@@ -21,7 +21,7 @@ public class AddressController {
     private final AddressService addressService;
 
     // 1. Lấy danh sách địa chỉ
-    @GetMapping(value = "/list")
+    @GetMapping(value = "/my-addresses")
     public ResponseEntity<List<AddressResponseDTO>> getMyAddresses() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(addressService.getUserAddresses(userId));
