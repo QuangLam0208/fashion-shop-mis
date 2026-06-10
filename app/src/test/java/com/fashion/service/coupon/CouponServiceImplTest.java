@@ -1,8 +1,12 @@
 package com.fashion.service.coupon;
 
 import com.fashion.dto.request.ApplyCouponRequestDTO;
+import com.fashion.dto.request.UpdateCouponRequestDTO;
 import com.fashion.dto.response.ApplyCouponResponseDTO;
+import com.fashion.dto.response.CouponResponseDTO;
+import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Coupon;
 import com.fashion.model.UserCoupon;
 import com.fashion.model.enums.DiscountType;
@@ -108,5 +112,64 @@ public class CouponServiceImplTest {
         BadRequestException ex = assertThrows(BadRequestException.class,
                 () -> couponService.applyCoupon(1L, request, 150000.0));
         assertTrue(ex.getMessage().contains("chưa đạt giá trị tối thiểu"));
+    }
+
+    @Test
+    void updateCoupon_Success_ImmutableCode() {
+        UpdateCouponRequestDTO updateDto = new UpdateCouponRequestDTO();
+        updateDto.setCode("NEWCODE"); // This should be ignored
+        updateDto.setDiscountValue(15.0);
+        updateDto.setDiscountType(DiscountType.FIXED_AMOUNT);
+        updateDto.setStartDate(Instant.now().plusSeconds(60));
+        updateDto.setExpiryDate(Instant.now().plusSeconds(3600 * 2));
+        updateDto.setMinOrderAmount(300000.0);
+        updateDto.setUsageLimit(200);
+        updateDto.setActive(false);
+
+        when(couponRepository.findById(1L)).thenReturn(Optional.of(validCoupon));
+        when(couponRepository.save(any(Coupon.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CouponResponseDTO response = couponService.updateCoupon(1L, updateDto);
+
+        assertEquals("TESTCODE", response.getCode()); // Code must remain unchanged
+        assertEquals(15.0, response.getDiscountValue());
+        assertEquals(DiscountType.FIXED_AMOUNT, response.getDiscountType());
+        assertEquals(updateDto.getStartDate(), response.getStartDate());
+        assertEquals(updateDto.getExpiryDate(), response.getExpiryDate());
+        assertEquals(300000.0, response.getMinOrderAmount());
+        assertEquals(200, response.getUsageLimit());
+        assertFalse(response.isActive());
+    }
+
+    @Test
+    void updateCoupon_NotFound() {
+        UpdateCouponRequestDTO updateDto = new UpdateCouponRequestDTO();
+        when(couponRepository.findById(99L)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> couponService.updateCoupon(99L, updateDto));
+        assertEquals("Mã giảm giá không tồn tại!", ex.getMessage());
+    }
+
+    @Test
+    void toggleCouponStatus_Success() {
+        when(couponRepository.findById(1L)).thenReturn(Optional.of(validCoupon));
+        when(couponRepository.save(any(Coupon.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        boolean initialStatus = validCoupon.isActive();
+
+        MessageResponseDTO response = couponService.toggleCouponStatus(1L);
+
+        assertNotEquals(initialStatus, validCoupon.isActive());
+        assertTrue(response.getMessage().contains("ngừng sử dụng") || response.getMessage().contains("kích hoạt"));
+    }
+
+    @Test
+    void toggleCouponStatus_NotFound() {
+        when(couponRepository.findById(99L)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> couponService.toggleCouponStatus(99L));
+        assertEquals("Mã giảm giá không tồn tại!", ex.getMessage());
     }
 }
