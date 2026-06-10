@@ -254,9 +254,26 @@ public class OrderManagementServiceImpl implements OrderManagementService {
         OrderItem item = orderItemRepository.findById(orderItemId)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm trong đơn hàng không tồn tại!"));
 
+        RefundStatus currentStatus = item.getRefundStatus();
+
+        if (currentStatus != RefundStatus.PENDING) {
+            throw new RuntimeException(
+                    "Chỉ sản phẩm đang chờ xử lý mới được cập nhật trạng thái refund!"
+            );
+        }
+
+        if (status != RefundStatus.COMPLETED
+                && status != RefundStatus.REJECTED
+                && status != RefundStatus.FAILED) {
+
+            throw new RuntimeException(
+                    "Trạng thái refund không hợp lệ!"
+            );
+        }
+
         item.setRefundStatus(status);
         if (status == RefundStatus.COMPLETED) {
-            item.setStatus(OrderStatus.CANCELLED);
+            item.setStatus(OrderStatus.RETURNED);
         }
         orderItemRepository.save(item);
 
@@ -266,7 +283,8 @@ public class OrderManagementServiceImpl implements OrderManagementService {
             if (status == RefundStatus.COMPLETED) {
                 // Kiểm tra xem tất cả các item trong yêu cầu hoàn trả này đã được hoàn tiền chưa
                 boolean allCompleted = rr.getReturnItems().stream()
-                        .allMatch(i -> i.getRefundStatus() == RefundStatus.COMPLETED);
+                        .allMatch(i -> i.getRefundStatus() == RefundStatus.COMPLETED
+                                || i.getRefundStatus() == RefundStatus.REJECTED);
 
                 if (allCompleted) {
                     rr.setStatus(ReturnStatus.COMPLETED);
@@ -287,6 +305,23 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                     "Thông báo hoàn tiền",
                     content,
                     "SUCCESS",
+                    item.getOrder().getId()
+            );
+        }
+        if (status == RefundStatus.REJECTED) {
+
+            String content =
+                    "Yêu cầu hoàn tiền cho sản phẩm '"
+                            + item.getProductName()
+                            + "' trong đơn hàng #"
+                            + item.getOrder().getId()
+                            + " đã bị từ chối.";
+
+            notificationService.createNotification(
+                    item.getOrder().getUser(),
+                    "Thông báo hoàn tiền",
+                    content,
+                    "WARNING",
                     item.getOrder().getId()
             );
         }
