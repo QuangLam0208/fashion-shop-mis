@@ -97,7 +97,7 @@ public class CouponServiceImpl implements CouponService {
     public ApplyCouponResponseDTO applyCoupon(Long userId, ApplyCouponRequestDTO dto, Double currentTotal) {
         // 1. Mã giảm giá không hợp lệ hoặc hết hạn
         Coupon coupon = couponRepository.findByCodeAndActiveTrueAndExpiryDateAfter(
-                        dto.getCouponCode(), Instant.now())
+                dto.getCouponCode(), Instant.now())
                 .orElseThrow(() -> new BadRequestException("Mã giảm giá không hợp lệ hoặc đã hết hạn!"));
 
         // 2. Hết lượt sử dụng toàn hệ thống
@@ -107,7 +107,8 @@ public class CouponServiceImpl implements CouponService {
 
         // 3. Không thỏa điều kiện giá trị tối thiểu
         if (coupon.getMinOrderAmount() != null && currentTotal < coupon.getMinOrderAmount()) {
-            throw new BadRequestException("Đơn hàng chưa đạt giá trị tối thiểu " + coupon.getMinOrderAmount() + "đ để sử dụng mã này!");
+            throw new BadRequestException(
+                    "Đơn hàng chưa đạt giá trị tối thiểu " + coupon.getMinOrderAmount() + "đ để sử dụng mã này!");
         }
 
         // 4. Kiểm tra user đã thu thập chưa và đã dùng chưa
@@ -144,7 +145,8 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = couponRepository.findByCodeAndActiveTrue(couponCode)
                 .orElseThrow(() -> new BadRequestException("Mã không hợp lệ!"));
 
-        // Cập nhật Atomic chống Data Race (Bạn nhớ thêm hàm incrementUsedCount vào CouponRepository)
+        // Cập nhật Atomic chống Data Race (Bạn nhớ thêm hàm incrementUsedCount vào
+        // CouponRepository)
         int updatedRows = couponRepository.incrementUsedCount(coupon.getId());
         if (updatedRows == 0) {
             throw new BadRequestException("Rất tiếc, mã giảm giá đã hết lượt sử dụng trước khi bạn kịp chốt đơn!");
@@ -175,7 +177,17 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public CouponResponseDTO createCoupon(CreateCouponRequestDTO dto) {
         if (couponRepository.existsByCode(dto.getCode())) {
-            throw new BadRequestException("Mã CODE đã tồn tại!");
+            throw new BadRequestException("This coupon code already exists in the system!");
+        }
+
+        if (dto.getStartDate() != null && dto.getExpiryDate() != null && !dto.getExpiryDate().isAfter(dto.getStartDate())) {
+            throw new BadRequestException("Invalid date range: End date must be later than start date");
+        }
+
+        if (dto.getDiscountType() == DiscountType.PERCENTAGE && dto.getDiscountValue() != null) {
+            if (dto.getDiscountValue() < 1 || dto.getDiscountValue() > 100) {
+                throw new BadRequestException("Discount percentage must be between 1 and 100");
+            }
         }
 
         Coupon coupon = Coupon.builder()
@@ -204,13 +216,20 @@ public class CouponServiceImpl implements CouponService {
             throw new BadRequestException("Mã CODE cập nhật đã tồn tại!");
         }
 
-        if (dto.getCode() != null) coupon.setCode(dto.getCode());
-        if (dto.getDiscountValue() != null) coupon.setDiscountValue(dto.getDiscountValue());
-        if (dto.getDiscountType() != null) coupon.setDiscountType(dto.getDiscountType());
-        if (dto.getStartDate() != null) coupon.setStartDate(dto.getStartDate());
-        if (dto.getExpiryDate() != null) coupon.setExpiryDate(dto.getExpiryDate());
-        if (dto.getMinOrderAmount() != null) coupon.setMinOrderAmount(dto.getMinOrderAmount());
-        if (dto.getUsageLimit() != null) coupon.setUsageLimit(dto.getUsageLimit());
+        if (dto.getCode() != null)
+            coupon.setCode(dto.getCode());
+        if (dto.getDiscountValue() != null)
+            coupon.setDiscountValue(dto.getDiscountValue());
+        if (dto.getDiscountType() != null)
+            coupon.setDiscountType(dto.getDiscountType());
+        if (dto.getStartDate() != null)
+            coupon.setStartDate(dto.getStartDate());
+        if (dto.getExpiryDate() != null)
+            coupon.setExpiryDate(dto.getExpiryDate());
+        if (dto.getMinOrderAmount() != null)
+            coupon.setMinOrderAmount(dto.getMinOrderAmount());
+        if (dto.getUsageLimit() != null)
+            coupon.setUsageLimit(dto.getUsageLimit());
         coupon.setActive(dto.isActive());
 
         return mapToDTO(couponRepository.save(coupon));
