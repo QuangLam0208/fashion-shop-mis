@@ -9,6 +9,7 @@ import com.fashion.model.Order;
 import com.fashion.model.OrderHistory;
 import com.fashion.model.OrderItem;
 import com.fashion.model.ReturnRequest;
+import com.fashion.model.enums.DiscountType;
 import com.fashion.model.enums.OrderStatus;
 import com.fashion.model.enums.RefundStatus;
 import com.fashion.model.enums.ReturnStatus;
@@ -176,6 +177,9 @@ public class OrderManagementServiceImpl implements OrderManagementService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng #" + orderId + " không tồn tại trong hệ thống!"));
 
+        // 1. Tính toán Subtotal (tổng tiền trước giảm giá)
+        double subtotalAmount = 0.0;
+
         List<OrderDetailResponseDTO.OrderItemDTO> itemDTOs = order.getOrderItems().stream().map(item -> {
 
             List<OrderDetailResponseDTO.OrderHistoryDTO> histories = item.getOrderHistories().stream()
@@ -203,6 +207,12 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                     .build();
         }).collect(Collectors.toList());
 
+        // Cộng dồn subtotal từ danh sách items
+        for (OrderItem item : order.getOrderItems()) {
+            subtotalAmount += (item.getProductVariant().getPrice() * item.getQuantity());
+        }
+
+        // 2. Map CustomerInfo
         OrderDetailResponseDTO.CustomerInfo customerInfo = null;
         if (order.getUser() != null) {
             customerInfo = OrderDetailResponseDTO.CustomerInfo.builder()
@@ -213,6 +223,24 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                     .build();
         }
 
+        // 3. Xử lý logic Coupon theo Acceptance Criteria
+        String couponCode = null;
+        Double discountAmount = 0.0;
+        Double discountValue = 0.0;
+        DiscountType discountType = null; // Cần import com.fashion.model.enums.DiscountType (nếu chưa có)
+
+        if (order.getCoupon() != null) {
+            // Giả định Entity Coupon của bạn có các getter tương ứng (getCode, getDiscountValue, getDiscountType)
+            couponCode = order.getCoupon().getCode();
+            discountValue = order.getCoupon().getDiscountValue();
+            discountType = order.getCoupon().getDiscountType();
+
+            // Tính số tiền đã giảm = Tổng tiền hàng - Tổng tiền thanh toán (tránh số âm do sai số float/double)
+            double calculatedDiscount = subtotalAmount - order.getTotalAmount();
+            discountAmount = Math.max(calculatedDiscount, 0.0);
+        }
+
+        // 4. Build DTO trả về kết quả cuối cùng
         return OrderDetailResponseDTO.builder()
                 .orderId(order.getId())
                 .orderDate(order.getOrderDate())
@@ -220,6 +248,11 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                 .status(order.getStatus())
                 .paymentMethod(order.getPaymentMethod())
                 .shippingAddress(order.getShippingAddress())
+                .subtotalAmount(subtotalAmount)     // THÊM MỚI
+                .couponCode(couponCode)             // THÊM MỚI
+                .discountAmount(discountAmount)     // THÊM MỚI
+                .discountValue(discountValue)       // THÊM MỚI
+                .discountType(discountType)         // THÊM MỚI
                 .userInfo(customerInfo)
                 .items(itemDTOs)
                 .build();

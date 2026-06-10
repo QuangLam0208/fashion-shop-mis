@@ -8,6 +8,6 @@ import java.util.List;
 
 @Repository
 public interface OrderHistoryRepository extends JpaRepository<OrderHistory, Long> {
-    // Lấy danh sách đơn hàng theo userId, sắp xếp mới nhất lên đầu
-    List<Order> findByUser_UserIdOrderByOrderDateDesc(Long userId);
+//    // Lấy danh sách đơn hàng theo userId, sắp xếp mới nhất lên đầu
+//    List<Order> findByUser_UserIdOrderByOrderDateDesc(Long userId);
 }
