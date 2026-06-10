@@ -172,6 +172,7 @@ public class CouponServiceImplTest {
         ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
                 () -> couponService.toggleCouponStatus(99L));
         assertEquals("Mã giảm giá không tồn tại!", ex.getMessage());
+    }
       
     @Test
     void createCoupon_Success() {
