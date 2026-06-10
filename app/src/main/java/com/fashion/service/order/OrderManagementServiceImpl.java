@@ -265,7 +265,9 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                 .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại!"));
 
         boolean updated = false;
-        for (OrderItem item : order.getOrderItems()) {
+        List<OrderItem> items = new ArrayList<>(order.getOrderItems());
+
+        for (OrderItem item : items) {
             if (item.getStatus() != OrderStatus.CANCELLED && item.getStatus() != OrderStatus.COMPLETED && item.getStatus() != status) {
                 updateOrderItemStatus(item.getId(), status);
                 updated = true;
