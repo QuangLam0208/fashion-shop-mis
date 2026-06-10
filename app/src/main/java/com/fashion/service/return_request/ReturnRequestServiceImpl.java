@@ -113,15 +113,14 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         // Validation for workflow transitions
         if (currentStatus == ReturnStatus.PENDING) {
-            if (nextStatus != ReturnStatus.APPROVED && nextStatus != ReturnStatus.REJECTED) {
-                throw new RuntimeException("Chỉ có thể Duyệt hoặc Từ chối yêu cầu đang chờ!");
-            }
-        } else if (currentStatus == ReturnStatus.APPROVED) {
-            if (nextStatus != ReturnStatus.COMPLETED) {
-                throw new RuntimeException("Chủ có thể Hoàn tất yêu cầu đã được duyệt!");
+            if (nextStatus != ReturnStatus.APPROVED
+                    && nextStatus != ReturnStatus.REJECTED) {
+                throw new RuntimeException(
+                        "Chỉ có thể duyệt hoặc từ chối yêu cầu đang chờ!");
             }
         } else {
-            throw new RuntimeException("Yêu cầu đã kết thúc, không thể xử lý thêm!");
+            throw new RuntimeException(
+                    "Yêu cầu đã được xử lý, không thể thao tác thêm!");
         }
 
         rr.setStatus(nextStatus);
@@ -129,18 +128,12 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         if (nextStatus == ReturnStatus.REJECTED) {
             rr.setRejectionReason(dto.getRejectionReason());
-            // Reset items status back to NONE if rejected
             for (OrderItem item : rr.getReturnItems()) {
                 item.setRefundStatus(RefundStatus.NONE);
             }
         } else if (nextStatus == ReturnStatus.APPROVED) {
             for (OrderItem item : rr.getReturnItems()) {
                 item.setRefundStatus(RefundStatus.PENDING);
-            }
-        } else if (nextStatus == ReturnStatus.COMPLETED) {
-            for (OrderItem item : rr.getReturnItems()) {
-                item.setRefundStatus(RefundStatus.COMPLETED);
-                item.setStatus(OrderStatus.CANCELLED);
             }
         }
 
