@@ -199,6 +199,12 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không tồn tại!"));
 
+        if (dto.getCode() != null && !dto.getCode().equals(coupon.getCode())
+                && couponRepository.existsByCode(dto.getCode())) {
+            throw new BadRequestException("Mã CODE cập nhật đã tồn tại!");
+        }
+
+        if (dto.getCode() != null) coupon.setCode(dto.getCode());
         if (dto.getDiscountValue() != null) coupon.setDiscountValue(dto.getDiscountValue());
         if (dto.getDiscountType() != null) coupon.setDiscountType(dto.getDiscountType());
         if (dto.getStartDate() != null) coupon.setStartDate(dto.getStartDate());

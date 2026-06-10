@@ -115,9 +115,9 @@ public class CouponServiceImplTest {
     }
 
     @Test
-    void updateCoupon_Success_ImmutableCode() {
+    void updateCoupon_Success() {
         UpdateCouponRequestDTO updateDto = new UpdateCouponRequestDTO();
-        updateDto.setCode("NEWCODE"); // This should be ignored
+        updateDto.setCode("NEWCODE"); // This will now update the code
         updateDto.setDiscountValue(15.0);
         updateDto.setDiscountType(DiscountType.FIXED_AMOUNT);
         updateDto.setStartDate(Instant.now().plusSeconds(60));
@@ -127,11 +127,12 @@ public class CouponServiceImplTest {
         updateDto.setActive(false);
 
         when(couponRepository.findById(1L)).thenReturn(Optional.of(validCoupon));
+        when(couponRepository.existsByCode("NEWCODE")).thenReturn(false);
         when(couponRepository.save(any(Coupon.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         CouponResponseDTO response = couponService.updateCoupon(1L, updateDto);
 
-        assertEquals("TESTCODE", response.getCode()); // Code must remain unchanged
+        assertEquals("NEWCODE", response.getCode()); // Code is now updated
         assertEquals(15.0, response.getDiscountValue());
         assertEquals(DiscountType.FIXED_AMOUNT, response.getDiscountType());
         assertEquals(updateDto.getStartDate(), response.getStartDate());
