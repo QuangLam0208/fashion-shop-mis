@@ -11,6 +11,8 @@ import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.ReturnRequestDetailResponseDTO;
 import com.fashion.dto.response.ReturnRequestListItemResponseDTO;
 import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ForbiddenException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Order;
 import com.fashion.model.OrderItem;
 import com.fashion.model.ReturnRequest;
@@ -294,5 +296,85 @@ class ReturnRequestServiceImplTest {
 
         assertEquals("A rejection reason is required when rejecting a return request.", exception.getMessage());
         verify(returnRepository, never()).save(any(ReturnRequest.class));
+    }
+
+    @Test
+    @DisplayName("Customer Case 1: Lấy danh sách yêu cầu hoàn trả của bản thân thành công")
+    void getReturnRequestsByCustomer_Success() {
+        // Arrange
+        Long customerId = 100L;
+        when(returnRepository.findByUserIdOrderByRequestDateDesc(customerId))
+                .thenReturn(List.of(mockReturnRequest));
+
+        // Act
+        List<ReturnRequestListItemResponseDTO> result = returnRequestService.getReturnRequestsByCustomer(customerId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getRequestId());
+        assertEquals("Nguyen Van A", result.get(0).getCustomerName());
+        assertEquals(ReturnStatus.PENDING, result.get(0).getStatus());
+
+        verify(returnRepository, times(1)).findByUserIdOrderByRequestDateDesc(customerId);
+    }
+
+    @Test
+    @DisplayName("Customer Case 2: Xem chi tiết yêu cầu hoàn trả thành công (Đúng chủ sở hữu)")
+    void getCustomerReturnRequestDetail_Success_WhenUserIsOwner() {
+        // Arrange
+        Long requestId = 1L;
+        // Giả lập người đăng nhập là 100L (Khớp với mockUser.getId() của mockReturnRequest)
+        mockedSecurityUtils.when(SecurityUtils::getAuthenticatedUserId).thenReturn(100L);
+        when(returnRepository.findById(requestId)).thenReturn(Optional.of(mockReturnRequest));
+
+        // Act
+        ReturnRequestDetailResponseDTO result = returnRequestService.getCustomerReturnRequestDetail(requestId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1L, result.getRequestId());
+        assertEquals(1L, result.getOrderId());
+        assertEquals("Nguyen Van A", result.getCustomerName());
+
+        verify(returnRepository, times(1)).findById(requestId);
+    }
+
+    @Test
+    @DisplayName("Customer Case 3: Ném lỗi 403 Forbidden khi xem chi tiết đơn của người khác")
+    void getCustomerReturnRequestDetail_ThrowsForbiddenException_WhenNotOwner() {
+        // Arrange
+        Long requestId = 1L;
+        // Giả lập hacker đang đăng nhập với ID 999L
+        mockedSecurityUtils.when(SecurityUtils::getAuthenticatedUserId).thenReturn(999L);
+        when(returnRepository.findById(requestId)).thenReturn(Optional.of(mockReturnRequest));
+
+        // Act & Assert
+        ForbiddenException exception = assertThrows(ForbiddenException.class, () -> {
+            returnRequestService.getCustomerReturnRequestDetail(requestId);
+        });
+
+        assertEquals("Bạn không có quyền truy cập yêu cầu hoàn trả này!", exception.getMessage());
+
+        // Xác minh chỉ gọi đến DB lấy request, ko làm gì thêm vì đã bị block
+        verify(returnRepository, times(1)).findById(requestId);
+    }
+
+    @Test
+    @DisplayName("Customer Case 4: Ném lỗi 404 Not Found khi yêu cầu không tồn tại")
+    void getCustomerReturnRequestDetail_ThrowsResourceNotFoundException_WhenNotFound() {
+        // Arrange
+        Long nonExistentRequestId = 999L;
+        when(returnRepository.findById(nonExistentRequestId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> {
+            returnRequestService.getCustomerReturnRequestDetail(nonExistentRequestId);
+        });
+
+        assertEquals("Yêu cầu hoàn trả không tồn tại!", exception.getMessage());
+
+        // Đảm bảo logic chưa kịp gọi đến SecurityUtils kiểm tra quyền vì DB đã ko có data
+        mockedSecurityUtils.verify(() -> SecurityUtils.getAuthenticatedUserId(), never());
     }
 }
