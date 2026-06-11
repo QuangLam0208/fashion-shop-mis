@@ -1,11 +1,13 @@
 package com.fashion.dto.response;
 
+import com.fashion.model.enums.PaymentMethod;
 import com.fashion.model.enums.ReturnStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
@@ -13,17 +15,20 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReturnRequestResponseDTO {
+public class ReturnRequestDetailResponseDTO {
     private Long requestId;
-    private Long orderId;
-    private String customerName;
-    private String customerEmail;
     private ReturnStatus status;
     private String reason;
     private String description;
     private List<String> imageUrls;
-    private Date requestDate;
+    private Instant requestDate;
+    private Instant processedAt;
     private String rejectionReason;
-    private String paymentMethod;
+    private Long customerId;
+    private String customerName;
+    private String customerEmail;
+    private String customerPhone;
+    private Long orderId;
+    private PaymentMethod paymentMethod;
     private List<ReturnItemDTO> items;
 }
