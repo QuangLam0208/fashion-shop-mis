@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../../shared/config/apiConfig';
 import axiosInstance from '../../shared/config/axiosInstance';
-import { DISCOUNT_TYPE } from '../../shared/constants/couponConstants';
+import { DISCOUNT_TYPE } from '../../shared/constants';
 
 export const couponService = {
   /**
@@ -8,7 +8,7 @@ export const couponService = {
    * GET /api/admin/coupons
    * params: { keyword, is_active, page, limit }
    */
-  getAll: async (params = {}) => {
+  getCoupons: async (params = {}) => {
     const res = await axiosInstance.get(API_ENDPOINTS.COUPONS.GET_ALL, { params });
     return res.data;
   },
@@ -24,11 +24,11 @@ export const couponService = {
 
   /**
    * Tạo coupon
-   * POST /api/admin/coupons
+   * POST /api/admin/coupons/create
    * Body: { code, discount_type, discount_value, min_order_amount, max_uses, is_active, expired_at }
    */
-  create: async (data) => {
-    const res = await axiosInstance.post(API_ENDPOINTS.COUPONS.CREATE, data);
+  createCoupon: async (payload) => {
+    const res = await axiosInstance.post('/api/admin/coupons/create', payload);
     return res.data;
   },
 
