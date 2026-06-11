@@ -22,7 +22,6 @@ import com.fashion.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -121,18 +120,48 @@ public class OrderManagementServiceImpl implements OrderManagementService {
         boolean isValid = false;
 
         switch (currentStatus) {
+            // ================= LUỒNG THANH TOÁN ONLINE =================
+            case PENDING_PAYMENT:
+                // Chờ thanh toán -> Đã thanh toán / Thất bại / Hết hạn / User hủy
+                isValid = (newStatus == OrderStatus.PAID ||
+                        newStatus == OrderStatus.PAYMENT_FAILED ||
+                        newStatus == OrderStatus.PAYMENT_EXPIRED ||
+                        newStatus == OrderStatus.CANCELLED);
+                break;
+            case PAID:
+                // Đã thanh toán -> Xác nhận / Đang xử lý / Admin hủy (để hoàn tiền)
+                isValid = (newStatus == OrderStatus.CONFIRMED ||
+                        newStatus == OrderStatus.PROCESSING ||
+                        newStatus == OrderStatus.CANCELLED);
+                break;
+
+            // ================= LUỒNG COD & XỬ LÝ CHUNG =================
             case PENDING_CONFIRMATION:
+                // Chờ xác nhận -> Đã xác nhận / Hủy
                 isValid = (newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED);
                 break;
+
             case CONFIRMED:
                 isValid = (newStatus == OrderStatus.PROCESSING);
+                // Đã xác nhận -> Đang xử lý / Hủy (khách đổi ý phút chót)
+                isValid = (newStatus == OrderStatus.PROCESSING || newStatus == OrderStatus.CANCELLED);
                 break;
+
             case PROCESSING:
+                // Đang xử lý -> Đang giao hàng
                 isValid = (newStatus == OrderStatus.SHIPPING);
                 break;
+
             case SHIPPING:
+                // Đang giao -> Đã giao / Hoàn hàng (Bom hàng)
                 isValid = (newStatus == OrderStatus.DELIVERED || newStatus == OrderStatus.RETURNED);
                 break;
+
+            case DELIVERED:
+                // Đã giao -> Hoàn thành (sau khi hết hạn đổi trả) / Hoàn hàng (Khách yêu cầu trả hàng)
+                isValid = (newStatus == OrderStatus.COMPLETED || newStatus == OrderStatus.RETURNED);
+                break;
+
             default:
                 isValid = false;
                 break;
