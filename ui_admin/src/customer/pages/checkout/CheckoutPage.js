@@ -1,5 +1,5 @@
-import { CheckCircleOutlined, HomeOutlined, TagOutlined } from '@ant-design/icons';
-import { Breadcrumb, Button, Card, Col, Divider, Input, Radio, Row, Select, Space, Table, Typography, message } from 'antd';
+import { CheckCircleOutlined, HomeOutlined, PlusOutlined } from '@ant-design/icons';
+import { Breadcrumb, Button, Card, Col, Divider, Radio, Row, Select, Space, Table, Typography, message, Spin, Tag } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../../shared/utils/formatters';
@@ -8,25 +8,27 @@ import { checkoutService } from '../../services/checkoutService';
 import { customerProfileService } from '../../services/customerProfileService';
 
 const { Text, Title } = Typography;
-const { TextArea } = Input;
 
 const CheckoutPage = () => {
   const { items, loadCart } = useCart();
   const navigate = useNavigate();
 
   const [selectedItemIds, setSelectedItemIds] = useState([]);
-  const [shippingAddress, setShippingAddress] = useState('');
+  
+  // === STATE CHO ĐỊA CHỈ ===
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [submitting, setSubmitting] = useState(false);
 
   const [couponCodeInput, setCouponCodeInput] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState(null); // Lưu thông tin mã đã áp dụng thành công
-  const [couponError, setCouponError] = useState(''); // Lỗi hiển thị màu đỏ
-  const [applyingCoupon, setApplyingCoupon] = useState(false); // Trạng thái loading của nút Áp dụng
-
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState([]);
 
-  // AC-FE-US23-01: Tự động Refetch giỏ hàng mới nhất khi vừa vào trang Checkout
   useEffect(() => {
     loadCart();
     checkoutService.getAvailableCoupons()
@@ -34,7 +36,6 @@ const CheckoutPage = () => {
       .catch(err => console.error("Không tải được danh sách voucher", err));
   }, []);
 
-  // Khởi tạo: Mặc định chọn tất cả item trong giỏ hàng
   useEffect(() => {
     if (items && items.length > 0) {
       const allIds = items.map(item => item.cartItemId ?? item.itemId ?? item.id);
@@ -42,19 +43,31 @@ const CheckoutPage = () => {
     }
   }, [items]);
 
+  // === FETCH ĐỊA CHỈ & XỬ LÝ AUTO-SELECT ===
   useEffect(() => {
-    const fetchDefaultAddress = async () => {
+    const fetchAddresses = async () => {
+      setLoadingAddresses(true);
       try {
-        const addresses = await customerProfileService.getAddresses();
-        const defaultAddr = addresses.find(a => a.isDefault);
-        if (defaultAddr) {
-          setShippingAddress(`${defaultAddr.receiverName} - ${defaultAddr.receiverPhone} - ${defaultAddr.fullAddress}`);
+        const res = await customerProfileService.getAddresses();
+        const addressList = res?.data || res || [];
+        setAddresses(addressList);
+        
+        // Auto-select logic
+        if (addressList.length > 0) {
+          const defaultAddr = addressList.find(a => a.isDefault);
+          if (defaultAddr) {
+            setSelectedAddressId(defaultAddr.id || defaultAddr.addressId);
+          } else {
+            setSelectedAddressId(addressList[0].id || addressList[0].addressId);
+          }
         }
       } catch (error) {
-        message.error('Không thể tải địa chỉ giao hàng. Vui lòng nhập thủ công.');
+        message.error('Không thể tải danh sách địa chỉ giao hàng.');
+      } finally {
+        setLoadingAddresses(false);
       }
     };
-    fetchDefaultAddress();
+    fetchAddresses();
   }, []);
 
   const selectedItems = useMemo(() => {
@@ -64,13 +77,8 @@ const CheckoutPage = () => {
     });
   }, [items, selectedItemIds]);
 
-  // === TÍNH TOÁN TIỀN THEO AC-FE-US26-01 ===
   const totalAmount = selectedItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0);
-  
-  // Lấy số tiền được giảm (nếu có mã hợp lệ), ngược lại là 0
   const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-  
-  // Tổng thanh toán cuối cùng (Không được âm)
   const finalAmount = Math.max(0, totalAmount - discountAmount);
 
   const rowSelection = {
@@ -80,8 +88,6 @@ const CheckoutPage = () => {
     },
   };
 
-  // === HÀM XỬ LÝ VOUCHER (US-26) ===
-  // === HÀM XỬ LÝ VOUCHER (CHUẨN THEO MÔ TẢ US-26) ===
   const handleApplyCoupon = async () => {
     if (!couponCodeInput.trim()) {
       setCouponError('Vui lòng nhập mã giảm giá');
@@ -91,16 +97,12 @@ const CheckoutPage = () => {
     setApplyingCoupon(true);
     
     try {
-      // 1. Gọi API với payload Body theo đúng mô tả: { couponCode, orderAmount }
       const res = await checkoutService.applyCoupon({
         couponCode: couponCodeInput.trim().toUpperCase(),
         orderAmount: totalAmount 
       });
       
-      // 2. Xử lý lưu số tiền giảm giá. 
-      // (Bắt cả 2 trường hợp tên biến trả về từ BE là discountAmount hoặc discount để không bị lỗi)
       const discountValue = res.discountAmount ?? res.discount ?? 0;
-
       setAppliedCoupon({
         code: couponCodeInput.trim().toUpperCase(),
         discountAmount: discountValue
@@ -108,7 +110,6 @@ const CheckoutPage = () => {
       message.success('Áp dụng mã giảm giá thành công!');
       
     } catch (error) {
-      // 3. AC-FE-US26-02: Bắt lỗi và hiển thị màu đỏ, giữ nguyên tiền gốc (appliedCoupon = null)
       const errorMsg = error?.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc không đủ điều kiện!';
       setCouponError(errorMsg);
       setAppliedCoupon(null);
@@ -117,59 +118,46 @@ const CheckoutPage = () => {
     }
   };
 
-  // Nút Hủy áp dụng Voucher
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
     setCouponCodeInput('');
     setCouponError('');
   };
-  // === XỬ LÝ ĐẶT HÀNG ===
-  // === XỬ LÝ ĐẶT HÀNG ===
+
   const handlePlaceOrder = async () => {
-    // 1. CHẠY VALIDATION TRƯỚC TIÊN
     if (selectedItemIds.length === 0) {
       message.warning('Danh sách sản phẩm thanh toán không được rỗng');
       return;
     }
-    if (!shippingAddress || shippingAddress.trim() === '') {
-      message.warning('Địa chỉ giao hàng không được để trống');
-      return;
-    }
-    if (shippingAddress.length > 500) {
-      message.warning('Địa chỉ giao hàng tối đa 500 ký tự');
+    if (!selectedAddressId) {
+      message.warning('Vui lòng chọn địa chỉ giao hàng');
       return;
     }
 
     setSubmitting(true);
     try {
-      // 2. KHAI BÁO PAYLOAD MỘT LẦN DUY NHẤT Ở ĐÂY
+      // === CẬP NHẬT PAYLOAD CHUẨN: Dùng addressId thay cho chuỗi text ===
       const payload = {
         cartItemIds: selectedItemIds,
-        shippingAddress: shippingAddress.trim(),
+        addressId: selectedAddressId, 
         paymentMethod: paymentMethod,
-        // US-26: Bổ sung couponCode vào Payload gửi xuống Backend
         couponCode: appliedCoupon ? appliedCoupon.code : null
       };
 
-      // 3. GỌI API ĐẶT HÀNG
       const res = await checkoutService.placeOrder(payload);
-      
-      // Xóa giỏ hàng sau khi đặt thành công
       await loadCart();
 
-      // 4. XỬ LÝ CHUYỂN HƯỚNG THEO PHƯƠNG THỨC THANH TOÁN
       if (paymentMethod === 'MOMO' && res.paymentUrl) {
         message.loading('Đang chuyển hướng sang cổng thanh toán MoMo...', 1.5);
         window.location.href = res.paymentUrl;
         return;
       }
 
-      // Nếu là COD thì chuyển qua trang Confirm
       navigate('/checkout/confirm', { 
         replace: true,
         state: { 
           orderId: res.orderId, 
-          totalAmount: res.totalAmount, // Giá cuối cùng BE tính
+          totalAmount: res.totalAmount,
           status: res.status,
           message: res.message || 'Đặt hàng thành công!'
         } 
@@ -202,23 +190,9 @@ const CheckoutPage = () => {
         );
       }
     },
-    {
-      title: 'Đơn giá',
-      dataIndex: 'price',
-      align: 'right',
-      render: (price) => formatCurrency(price)
-    },
-    {
-      title: 'Số lượng',
-      dataIndex: 'quantity',
-      align: 'center'
-    },
-    {
-      title: 'Thành tiền',
-      key: 'total',
-      align: 'right',
-      render: (_, record) => <strong style={{ color: '#e53935' }}>{formatCurrency(record.price * record.quantity)}</strong>
-    }
+    { title: 'Đơn giá', dataIndex: 'price', align: 'right', render: (price) => formatCurrency(price) },
+    { title: 'Số lượng', dataIndex: 'quantity', align: 'center' },
+    { title: 'Thành tiền', key: 'total', align: 'right', render: (_, record) => <strong style={{ color: '#e53935' }}>{formatCurrency(record.price * record.quantity)}</strong> }
   ];
 
   return (
@@ -249,14 +223,45 @@ const CheckoutPage = () => {
           <Col xs={24} lg={8}>
             <Card title="Thông tin giao hàng" bordered={false} style={{ borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.05)', marginBottom: 24 }}>
               <div style={{ marginBottom: 8, fontWeight: 600 }}>Địa chỉ nhận hàng <span style={{ color: 'red' }}>*</span></div>
-              <TextArea 
-                rows={4} 
-                placeholder="Nhập địa chỉ..." 
-                maxLength={500}
-                showCount
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-              />
+              
+              {/* === HIỂN THỊ DANH SÁCH ĐỊA CHỈ HOẶC EMPTY STATE === */}
+              {loadingAddresses ? (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}><Spin /></div>
+              ) : addresses.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '16px 0', background: '#fafafa', border: '1px dashed #d9d9d9', borderRadius: 8 }}>
+                  <Text style={{ display: 'block', marginBottom: 12, color: '#666' }}>Bạn chưa có địa chỉ giao hàng</Text>
+                  <Button type="primary" ghost icon={<PlusOutlined />} onClick={() => navigate('/account/profile')}>
+                    Thêm địa chỉ mới
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  style={{ width: '100%' }}
+                  value={selectedAddressId}
+                  onChange={setSelectedAddressId}
+                  placeholder="Chọn địa chỉ giao hàng"
+                  optionLabelProp="label"
+                  size="large"
+                >
+                  {addresses.map(addr => (
+                    <Select.Option 
+                      key={addr.id || addr.addressId} 
+                      value={addr.id || addr.addressId} 
+                      label={`${addr.receiverName} - ${addr.receiverPhone}`}
+                    >
+                      <div style={{ padding: '4px 0' }}>
+                        <div style={{ fontWeight: 600, color: '#1a1a1a' }}>
+                          {addr.receiverName} - {addr.receiverPhone}
+                          {addr.isDefault && <Tag color="blue" style={{ marginLeft: 8 }}>Mặc định</Tag>}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#666', marginTop: 4, whiteSpace: 'normal', lineHeight: '1.4' }}>
+                          {addr.fullAddress}
+                        </div>
+                      </div>
+                    </Select.Option>
+                  ))}
+                </Select>
+              )}
             </Card>
 
             <Card title="Phương thức thanh toán" bordered={false} style={{ borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.05)', marginBottom: 24 }}>
@@ -271,8 +276,6 @@ const CheckoutPage = () => {
             </Card>
 
             <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-              
-              {/* === KHU VỰC NHẬP MÃ GIẢM GIÁ (US-26) === */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ marginBottom: 8, fontWeight: 600 }}>Chọn Voucher:</div>
                 <Space.Compact style={{ width: '100%' }}>
@@ -308,7 +311,6 @@ const CheckoutPage = () => {
 
               <Divider style={{ margin: '16px 0' }} />
 
-              {/* === TỔNG KẾT CHI PHÍ (AC-FE-US26-01) === */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <Text style={{ fontSize: 15, color: '#555' }}>Tổng tiền hàng:</Text>
                 <Text style={{ fontSize: 15 }}>{formatCurrency(totalAmount)}</Text>

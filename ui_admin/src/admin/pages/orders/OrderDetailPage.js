@@ -224,18 +224,29 @@ const OrderDetailPage = () => {
             <Divider />
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <div style={{ width: 300 }}>
+                
+                {/* 1. Tiền hàng (Subtotal) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text type="secondary">Tạm tính:</Text><Text>{formatCurrency(order.subtotalAmount || order.totalAmount)}</Text>
+                  <Text type="secondary">Tạm tính (Tiền hàng):</Text>
+                  <Text>{formatCurrency(order.subtotalAmount || order.totalAmount)}</Text>
                 </div>
+                
+                {/* 2. Tiền giảm (Discount) - Chỉ hiện khi có mã (Đúng chuẩn AC của bạn) */}
                 {order.couponCode && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text type="secondary">Mã giảm giá ({order.couponCode}):</Text><Text type="success">- {formatCurrency(order.discountAmount || 0)}</Text>
+                    <Text type="secondary">Mã giảm giá ({order.couponCode}):</Text>
+                    <Text type="success">- {formatCurrency(order.discountAmount || 0)}</Text>
                   </div>
                 )}
+
+                {/* [THIẾU PHÍ SHIP Ở ĐÂY] */}
+
+                {/* 3. Tổng tiền (Total) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #eee', paddingTop: 12, marginTop: 4 }}>
                   <Title level={5} style={{ margin: 0 }}>Tổng thanh toán:</Title>
                   <Title level={4} style={{ margin: 0, color: '#e53935' }}>{formatCurrency(order.totalAmount)}</Title>
                 </div>
+                
               </div>
             </div>
           </Card>

@@ -25,7 +25,7 @@ export const customerProfileService = {
 
   // --- ADDRESS ---
   getAddresses: async () => {
-    const res = await axiosInstance.get('/api/users/me/addresses/get');
+    const res = await axiosInstance.get('/api/users/me/addresses/my-addresses');
     return res.data;
   },
   createAddress: async (data) => {

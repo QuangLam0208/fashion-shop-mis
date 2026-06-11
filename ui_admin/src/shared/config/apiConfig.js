@@ -53,9 +53,9 @@ export const API_ENDPOINTS = {
     GET_ORDERS:    (id) => `${BASE}/api/admin/users/${id}/orders`,
   },
   COUPONS: {
-    GET_ALL:   `${BASE}/api/admin/coupons`,
+    GET_ALL:   `${BASE}/api/admin/coupons/list`,
     GET_BY_ID: (id) => `${BASE}/api/admin/coupons/${id}`,
-    CREATE:    `${BASE}/api/admin/coupons`,
+    CREATE:    `${BASE}/api/admin/coupons/create`,
     UPDATE:    (id) => `${BASE}/api/admin/coupons/${id}`,
     DELETE:    (id) => `${BASE}/api/admin/coupons/${id}`,
   },
