@@ -35,7 +35,7 @@ public class AdminCouponController {
     }
 
     // TẠO MÃ GIẢM GIÁ
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<CouponResponseDTO> createCoupon(
             @Valid @RequestBody CreateCouponRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -43,7 +43,7 @@ public class AdminCouponController {
     }
 
     // CẬP NHẬT MÃ
-    @PutMapping("/{couponId}")
+    @PutMapping("/update/{couponId}")
     public ResponseEntity<CouponResponseDTO> updateCoupon(
             @PathVariable Long couponId,
             @Valid @RequestBody UpdateCouponRequestDTO dto) {
