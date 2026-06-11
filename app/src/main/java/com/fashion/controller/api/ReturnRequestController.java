@@ -1,7 +1,7 @@
 package com.fashion.controller.api;
 
 import com.fashion.dto.request.SubmitReturnRequestDTO;
-import com.fashion.dto.response.ReturnRequestResponseDTO;
+import com.fashion.dto.response.ReturnRequestDetailResponseDTO;
 import com.fashion.model.ReturnRequest;
 import com.fashion.service.return_request.ReturnRequestService;
 import com.fashion.util.SecurityUtils;
@@ -21,7 +21,7 @@ public class ReturnRequestController {
 
     // LẤY DS YÊU CẦU TRẢ HÀNG
     @GetMapping("/list")
-    public ResponseEntity<List<ReturnRequestResponseDTO>> getReturnRequestsByCustomer() {
+    public ResponseEntity<List<ReturnRequestDetailResponseDTO>> getReturnRequestsByCustomer() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(
                 returnRequestService.getReturnRequestsByCustomer(userId));

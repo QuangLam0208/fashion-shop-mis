@@ -4,8 +4,10 @@ import com.fashion.dto.request.ProcessReturnRequestDTO;
 import com.fashion.dto.request.SubmitReturnRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.ReturnItemDTO;
-import com.fashion.dto.response.ReturnRequestResponseDTO;
+import com.fashion.dto.response.ReturnRequestDetailResponseDTO;
+import com.fashion.dto.response.ReturnRequestListItemResponseDTO;
 import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.*;
 import com.fashion.model.enums.OrderStatus;
 import com.fashion.model.enums.RefundStatus;
@@ -29,7 +31,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     private final ReturnRequestRepository returnRepository;
 
     @Override
-    public List<ReturnRequestResponseDTO> getReturnRequestsByCustomer(Long customerId) {
+    public List<ReturnRequestDetailResponseDTO> getReturnRequestsByCustomer(Long customerId) {
         return returnRepository.findByUserIdOrderByRequestDateDesc(customerId)
                 .stream().map(this::mapToDTO).toList();
     }
@@ -106,17 +108,17 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     }
 
     @Override
-    public Page<ReturnRequestResponseDTO> getAllReturnRequests(ReturnStatus status, Pageable pageable) {
+    public Page<ReturnRequestListItemResponseDTO> getAllReturnRequests(ReturnStatus status, Pageable pageable) {
         if (status != null) {
-            return returnRepository.findByStatusOrderByRequestDateAsc(status, pageable).map(this::mapToDTO);
+            return returnRepository.findByStatusOrderByRequestDateAsc(status, pageable).map(this::mapToListItemDTO);
         }
-        return returnRepository.findAll(pageable).map(this::mapToDTO);
+        return returnRepository.findAll(pageable).map(this::mapToListItemDTO);
     }
 
     @Override
-    public ReturnRequestResponseDTO getReturnRequestDetail(Long requestId) {
+    public ReturnRequestDetailResponseDTO getReturnRequestDetail(Long requestId) {
         ReturnRequest rr = returnRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Yêu cầu hoàn trả không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Yêu cầu hoàn trả không tồn tại!"));
         return mapToDTO(rr);
     }
 
@@ -124,36 +126,38 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Transactional
     public MessageResponseDTO processReturnRequest(Long requestId, ProcessReturnRequestDTO dto) {
         ReturnRequest rr = returnRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Yêu cầu hoàn trả không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Yêu cầu hoàn trả không tồn tại!"));
 
         ReturnStatus currentStatus = rr.getStatus();
         ReturnStatus nextStatus = dto.getNewStatus();
 
-        // Validation for workflow transitions
-        if (currentStatus == ReturnStatus.PENDING) {
-            if (nextStatus != ReturnStatus.APPROVED
-                    && nextStatus != ReturnStatus.REJECTED) {
-                throw new RuntimeException(
-                        "Chỉ có thể duyệt hoặc từ chối yêu cầu đang chờ!");
-            }
-        } else {
-            throw new RuntimeException(
-                    "Yêu cầu đã được xử lý, không thể thao tác thêm!");
+        // 1. Validation for workflow transitions
+        if (currentStatus != ReturnStatus.PENDING) {
+            throw new BadRequestException("Yêu cầu đã được xử lý, không thể thao tác thêm!");
         }
 
-        rr.setStatus(nextStatus);
-        rr.setProcessedAt(new Date());
+        if (nextStatus != ReturnStatus.APPROVED && nextStatus != ReturnStatus.REJECTED) {
+            throw new BadRequestException("Chỉ có thể duyệt hoặc từ chối yêu cầu đang chờ!");
+        }
 
+        // 2. Logic on Rejection- Bắt buộc nhập lý do
         if (nextStatus == ReturnStatus.REJECTED) {
+            if (dto.getRejectionReason() == null || dto.getRejectionReason().trim().isEmpty()) {
+                throw new BadRequestException("A rejection reason is required when rejecting a return request.");
+            }
             rr.setRejectionReason(dto.getRejectionReason());
             for (OrderItem item : rr.getReturnItems()) {
                 item.setRefundStatus(RefundStatus.NONE);
             }
-        } else if (nextStatus == ReturnStatus.APPROVED) {
+        }
+        // 3. Approval
+        else {
             for (OrderItem item : rr.getReturnItems()) {
                 item.setRefundStatus(RefundStatus.PENDING);
             }
         }
+        rr.setStatus(nextStatus);
+        rr.setProcessedAt(new Date());
 
         returnRepository.save(rr);
 
@@ -162,27 +166,47 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .build();
     }
 
-    private ReturnRequestResponseDTO mapToDTO(ReturnRequest rr) {
-        return ReturnRequestResponseDTO.builder()
+    // Mapper riêng cho Danh Sách
+    private ReturnRequestListItemResponseDTO mapToListItemDTO(ReturnRequest rr) {
+        return ReturnRequestListItemResponseDTO.builder()
                 .requestId(rr.getId())
-                .orderId(rr.getOrder().getId())
-                .customerName(rr.getUser().getFullName())
-                .customerEmail(rr.getUser().getEmail())
+                .orderId(rr.getOrder() != null ? rr.getOrder().getId() : null)
+                .customerName(rr.getUser() != null ? rr.getUser().getFullName() : null)
+                .customerPhone(rr.getUser() != null ? rr.getUser().getPhone() : null)
+                .reason(rr.getReason())
+                .requestDate(rr.getRequestDate() != null ? rr.getRequestDate().toInstant() : null)
+                .status(rr.getStatus())
+                .totalItems(rr.getReturnItems() != null ? rr.getReturnItems().size() : 0)
+                .build();
+    }
+
+    // Mapper cho Chi Tiết
+    private ReturnRequestDetailResponseDTO mapToDTO(ReturnRequest rr) {
+        return ReturnRequestDetailResponseDTO.builder()
+                .requestId(rr.getId())
                 .status(rr.getStatus())
                 .reason(rr.getReason())
                 .description(rr.getDescription())
                 .imageUrls(rr.getImageUrls())
-                .requestDate(rr.getRequestDate())
+                .requestDate(rr.getRequestDate() != null ? rr.getRequestDate().toInstant() : null)
+                .processedAt(rr.getProcessedAt() != null ? rr.getProcessedAt().toInstant() : null)
                 .rejectionReason(rr.getRejectionReason())
-                .paymentMethod(rr.getOrder().getPaymentMethod().name())
+                .customerId(rr.getUser() != null ? rr.getUser().getId() : null)
+                .customerName(rr.getUser() != null ? rr.getUser().getFullName() : null)
+                .customerEmail(rr.getUser() != null ? rr.getUser().getEmail() : null)
+                .customerPhone(rr.getUser() != null ? rr.getUser().getPhone() : null)
+                .orderId(rr.getOrder() != null ? rr.getOrder().getId() : null)
+                .paymentMethod(rr.getOrder() != null ? rr.getOrder().getPaymentMethod() : null)
                 .items(rr.getReturnItems().stream()
                         .map(item -> ReturnItemDTO.builder()
+                                .orderItemId(item.getId())
                                 .productName(item.getProductName())
                                 .productImage(getProductImageUrl(item.getProductVariant()))
                                 .size(item.getProductVariant() != null ? item.getProductVariant().getSize() : null)
                                 .color(item.getProductVariant() != null ? item.getProductVariant().getColor() : null)
                                 .quantity(item.getQuantity())
                                 .price(item.getPrice())
+                                .refundStatus(item.getRefundStatus())
                                 .build())
                         .toList())
                 .build();
