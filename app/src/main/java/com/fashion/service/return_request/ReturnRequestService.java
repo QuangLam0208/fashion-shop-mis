@@ -16,7 +16,8 @@ import java.util.List;
 
 public interface ReturnRequestService {
     // Lấy danh sách đơn hàng đang có yêu cầu hoàn trả của khách hàng
-    List<ReturnRequestDetailResponseDTO> getReturnRequestsByCustomer(Long customerId);
+    List<ReturnRequestListItemResponseDTO> getReturnRequestsByCustomer(Long customerId);
+    ReturnRequestDetailResponseDTO getCustomerReturnRequestDetail(Long requestId);
     Order getOrderForReturn(Long orderId);
     List<OrderItem> validateReturnEligibility(Long orderId, List<Long> itemIds);
     ReturnRequest submitReturnRequest(SubmitReturnRequestDTO dto);

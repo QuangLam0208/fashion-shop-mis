@@ -7,6 +7,7 @@ import com.fashion.dto.response.ReturnItemDTO;
 import com.fashion.dto.response.ReturnRequestDetailResponseDTO;
 import com.fashion.dto.response.ReturnRequestListItemResponseDTO;
 import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ForbiddenException;
 import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.*;
 import com.fashion.model.enums.OrderStatus;
@@ -31,9 +32,22 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     private final ReturnRequestRepository returnRepository;
 
     @Override
-    public List<ReturnRequestDetailResponseDTO> getReturnRequestsByCustomer(Long customerId) {
+    public List<ReturnRequestListItemResponseDTO> getReturnRequestsByCustomer(Long customerId) {
         return returnRepository.findByUserIdOrderByRequestDateDesc(customerId)
-                .stream().map(this::mapToDTO).toList();
+                .stream().map(this::mapToListItemDTO).toList();
+    }
+
+    @Override
+    public ReturnRequestDetailResponseDTO getCustomerReturnRequestDetail(Long requestId) {
+        ReturnRequest rr = returnRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Yêu cầu hoàn trả không tồn tại!"));
+
+        Long currentUserId = SecurityUtils.getAuthenticatedUserId();
+        if (!rr.getUser().getId().equals(currentUserId)) {
+            throw new ForbiddenException("Bạn không có quyền truy cập yêu cầu hoàn trả này!");
+        }
+
+        return mapToDTO(rr);
     }
 
     @Override

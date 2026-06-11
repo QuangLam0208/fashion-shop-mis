@@ -2,6 +2,7 @@ package com.fashion.controller.api;
 
 import com.fashion.dto.request.SubmitReturnRequestDTO;
 import com.fashion.dto.response.ReturnRequestDetailResponseDTO;
+import com.fashion.dto.response.ReturnRequestListItemResponseDTO;
 import com.fashion.model.ReturnRequest;
 import com.fashion.service.return_request.ReturnRequestService;
 import com.fashion.util.SecurityUtils;
@@ -21,10 +22,18 @@ public class ReturnRequestController {
 
     // LẤY DS YÊU CẦU TRẢ HÀNG
     @GetMapping("/list")
-    public ResponseEntity<List<ReturnRequestDetailResponseDTO>> getReturnRequestsByCustomer() {
+    public ResponseEntity<List<ReturnRequestListItemResponseDTO>> getReturnRequestsByCustomer() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(
                 returnRequestService.getReturnRequestsByCustomer(userId));
+    }
+
+    // XEM CHI TIẾT (CUSTOMER)
+    @GetMapping("/{requestId}")
+    public ResponseEntity<ReturnRequestDetailResponseDTO> getCustomerReturnRequestDetail(
+            @PathVariable Long requestId
+    ) {
+        return ResponseEntity.ok(returnRequestService.getCustomerReturnRequestDetail(requestId));
     }
 
     // GỬI YÊU CẦU TRẢ HÀNG (JSON)
