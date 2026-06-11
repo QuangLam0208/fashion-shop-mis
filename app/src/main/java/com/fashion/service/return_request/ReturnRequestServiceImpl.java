@@ -5,21 +5,21 @@ import com.fashion.dto.request.SubmitReturnRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.ReturnItemDTO;
 import com.fashion.dto.response.ReturnRequestResponseDTO;
+import com.fashion.exception.BadRequestException;
 import com.fashion.model.*;
 import com.fashion.model.enums.OrderStatus;
 import com.fashion.model.enums.RefundStatus;
 import com.fashion.model.enums.ReturnStatus;
 import com.fashion.repository.OrderRepository;
 import com.fashion.repository.ReturnRequestRepository;
+import com.fashion.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -37,26 +37,44 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Override
     public Order getOrderForReturn(Long orderId) {
         return orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại!"));
+                .orElseThrow(() -> new BadRequestException("Đơn hàng không tồn tại!"));
     }
 
     @Override
     public List<OrderItem> validateReturnEligibility(Long orderId, List<Long> itemIds) {
         Order order = getOrderForReturn(orderId);
 
+        Long authenticatedUserId = SecurityUtils.getAuthenticatedUserId();
+        if (!order.getUser().getId().equals(authenticatedUserId)) {
+            throw new BadRequestException("Bạn không có quyền yêu cầu hoàn trả cho đơn hàng này!");
+        }
+
         List<OrderItem> selectedItems = order.getOrderItems().stream()
                 .filter(item -> itemIds.contains(item.getId()))
                 .toList();
 
+        if (selectedItems.isEmpty()) {
+            throw new BadRequestException("Không tìm thấy sản phẩm hợp lệ để hoàn trả!");
+        }
+
+        Set<Long> uniqueItemIds = new HashSet<>(itemIds);
+        if (selectedItems.size() != uniqueItemIds.size()) {
+            throw new BadRequestException(
+                    "Một hoặc nhiều sản phẩm không thuộc đơn hàng này!");
+        }
+
         for (OrderItem item : selectedItems) {
             if (item.getStatus() != OrderStatus.DELIVERED && item.getStatus() != OrderStatus.COMPLETED) {
-                throw new RuntimeException("Sản phẩm '" + item.getProductName()
+                throw new BadRequestException("Sản phẩm '" + item.getProductName()
                         + "' chưa được giao thành công, không thể hoàn trả!");
             }
         }
 
-        if (returnRepository.existsByOrderItemIdIn(itemIds)) {
-            throw new RuntimeException("Một hoặc nhiều sản phẩm đã được yêu cầu hoàn trả trước đó!");
+        List<ReturnStatus> activeStatuses = List.of(ReturnStatus.PENDING, ReturnStatus.APPROVED);
+        boolean hasActiveReturn = returnRepository.existsByItemIdsAndStatuses(itemIds, activeStatuses);
+
+        if (hasActiveReturn) {
+            throw new BadRequestException("Một hoặc nhiều sản phẩm đã có yêu cầu hoàn trả đang được xử lý!");
         }
 
         return selectedItems;
@@ -113,15 +131,14 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         // Validation for workflow transitions
         if (currentStatus == ReturnStatus.PENDING) {
-            if (nextStatus != ReturnStatus.APPROVED && nextStatus != ReturnStatus.REJECTED) {
-                throw new RuntimeException("Chỉ có thể Duyệt hoặc Từ chối yêu cầu đang chờ!");
-            }
-        } else if (currentStatus == ReturnStatus.APPROVED) {
-            if (nextStatus != ReturnStatus.COMPLETED) {
-                throw new RuntimeException("Chủ có thể Hoàn tất yêu cầu đã được duyệt!");
+            if (nextStatus != ReturnStatus.APPROVED
+                    && nextStatus != ReturnStatus.REJECTED) {
+                throw new RuntimeException(
+                        "Chỉ có thể duyệt hoặc từ chối yêu cầu đang chờ!");
             }
         } else {
-            throw new RuntimeException("Yêu cầu đã kết thúc, không thể xử lý thêm!");
+            throw new RuntimeException(
+                    "Yêu cầu đã được xử lý, không thể thao tác thêm!");
         }
 
         rr.setStatus(nextStatus);
@@ -129,18 +146,12 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
         if (nextStatus == ReturnStatus.REJECTED) {
             rr.setRejectionReason(dto.getRejectionReason());
-            // Reset items status back to NONE if rejected
             for (OrderItem item : rr.getReturnItems()) {
                 item.setRefundStatus(RefundStatus.NONE);
             }
         } else if (nextStatus == ReturnStatus.APPROVED) {
             for (OrderItem item : rr.getReturnItems()) {
                 item.setRefundStatus(RefundStatus.PENDING);
-            }
-        } else if (nextStatus == ReturnStatus.COMPLETED) {
-            for (OrderItem item : rr.getReturnItems()) {
-                item.setRefundStatus(RefundStatus.COMPLETED);
-                item.setStatus(OrderStatus.CANCELLED);
             }
         }
 
