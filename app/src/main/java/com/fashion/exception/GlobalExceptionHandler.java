@@ -44,6 +44,16 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
+    // 2.5 XỬ LÝ LỖI ĐỌC DỮ LIỆU JSON (Sai định dạng, sai kiểu dữ liệu) -> Trả về 400 Bad Request
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<MessageResponseDTO> handleHttpMessageNotReadable(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.error("Lỗi parse JSON/Body: ", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(MessageResponseDTO.builder()
+                        .message("Dữ liệu gửi lên không đúng định dạng hoặc sai kiểu dữ liệu. Vui lòng kiểm tra lại payload (Ví dụ: truyền null cho field boolean/số, hoặc sai định dạng ngày tháng).")
+                        .build());
+    }
+
     // 3. XỬ LÝ LỖI LOGIC NGHIỆP VỤ (Trùng email, sai mật khẩu...) -> Trả về 400 Bad Request
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<MessageResponseDTO> handleBadRequestException(BadRequestException ex) {
