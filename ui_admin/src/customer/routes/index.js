@@ -33,6 +33,7 @@ import OrderDetailPage from '../pages/account/OrderDetailPage';
 
 // ── 404
 import NotFoundPage from '../pages/NotFoundPage';
+import CustomerReturnListPage from '../pages/account/CustomerReturnListPage';
 
 const CustomerRoutes = () => (
   <Routes>
@@ -62,6 +63,7 @@ const CustomerRoutes = () => (
         <Route path="account/profile"    element={<ProfilePage />} />
         <Route path="account/orders"     element={<CustomerOrder />} />
         <Route path="account/orders/:id" element={<OrderDetailPage />} />
+        <Route path="account/returns"    element={<CustomerReturnListPage />} />
       </Route>
     </Route>
 
