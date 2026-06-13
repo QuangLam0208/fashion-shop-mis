@@ -4,7 +4,9 @@ import com.fashion.dto.request.ProcessReturnRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.ReturnRequestDetailResponseDTO;
 import com.fashion.dto.response.ReturnRequestListItemResponseDTO;
+import com.fashion.model.enums.RefundStatus;
 import com.fashion.model.enums.ReturnStatus;
+import com.fashion.service.order.OrderManagementService;
 import com.fashion.service.return_request.ReturnRequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminReturnRequestController {
 
     private final ReturnRequestService returnRequestService;
+    private final OrderManagementService orderManagementService;
 
     // LẤY TẤT CẢ YÊU CẦU
     @GetMapping("/list")
@@ -45,5 +48,14 @@ public class AdminReturnRequestController {
         return ResponseEntity.ok(
                 returnRequestService.processReturnRequest(requestId, dto)
         );
+    }
+
+    @PutMapping("/refund/{itemId}")
+    public ResponseEntity<Void> updateRefundStatus(
+            @PathVariable Long itemId,
+            @RequestParam RefundStatus status
+    ) {
+        orderManagementService.updateRefundStatus(itemId, status);
+        return ResponseEntity.noContent().build();
     }
 }
