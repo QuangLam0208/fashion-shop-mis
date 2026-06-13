@@ -5,10 +5,7 @@ import com.fashion.dto.response.OrderDetailResponseDTO;
 import com.fashion.dto.response.OrderSummaryResponseDTO;
 import com.fashion.exception.BadRequestException;
 import com.fashion.exception.ResourceNotFoundException;
-import com.fashion.model.Order;
-import com.fashion.model.OrderHistory;
-import com.fashion.model.OrderItem;
-import com.fashion.model.ReturnRequest;
+import com.fashion.model.*;
 import com.fashion.model.enums.DiscountType;
 import com.fashion.model.enums.OrderStatus;
 import com.fashion.model.enums.RefundStatus;
@@ -315,79 +312,55 @@ public class OrderManagementServiceImpl implements OrderManagementService {
     @Override
     @Transactional
     public void updateRefundStatus(Long orderItemId, RefundStatus status) {
+        // 1. Kiểm tra sự tồn tại của sản phẩm
         OrderItem item = orderItemRepository.findById(orderItemId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm trong đơn hàng không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm trong đơn hàng không tồn tại!"));
 
-        RefundStatus currentStatus = item.getRefundStatus();
-
-        if (currentStatus != RefundStatus.PENDING) {
-            throw new RuntimeException(
-                    "Chỉ sản phẩm đang chờ xử lý mới được cập nhật trạng thái refund!"
-            );
+        // 2. Chặn nếu trạng thái hiện tại khác PENDING
+        if (item.getRefundStatus() != RefundStatus.PENDING) {
+            throw new BadRequestException("Chỉ sản phẩm đang chờ xử lý mới được cập nhật trạng thái refund!");
         }
 
-        if (status != RefundStatus.COMPLETED
-                && status != RefundStatus.REJECTED
-                && status != RefundStatus.FAILED) {
-
-            throw new RuntimeException(
-                    "Trạng thái refund không hợp lệ!"
-            );
+        // 3. Validate tham số đích (Chỉ nhận COMPLETED, REJECTED, FAILED)
+        if (status != RefundStatus.COMPLETED && status != RefundStatus.REJECTED && status != RefundStatus.FAILED) {
+            throw new BadRequestException("Trạng thái refund không hợp lệ!");
         }
 
+        // 4. Lưu trạng thái hoàn tiền & Đổi OrderStatus thành RETURNED nếu COMPLETED
         item.setRefundStatus(status);
         if (status == RefundStatus.COMPLETED) {
             item.setStatus(OrderStatus.RETURNED);
         }
         orderItemRepository.save(item);
 
-        // ĐỒNG BỘ VỚI RETURN REQUEST NẾU CÓ
-        if (item.getReturnRequest() != null) {
-            ReturnRequest rr = item.getReturnRequest();
-            if (status == RefundStatus.COMPLETED) {
-                // Kiểm tra xem tất cả các item trong yêu cầu hoàn trả này đã được hoàn tiền chưa
-                boolean allCompleted = rr.getReturnItems().stream()
-                        .allMatch(i -> i.getRefundStatus() == RefundStatus.COMPLETED
-                                || i.getRefundStatus() == RefundStatus.REJECTED);
+        // 5. Kiểm tra tự động đóng phiếu ReturnRequest sang COMPLETED
+        ReturnRequest returnRequest = item.getReturnRequest();
+        if (returnRequest != null) {
+            // Kiểm tra tất cả mặt hàng đã thoát khỏi PENDING (tức là đã kết thúc)
+            boolean isAllProcessed = returnRequest.getReturnItems().stream()
+                    .allMatch(i -> i.getRefundStatus() == RefundStatus.COMPLETED
+                            || i.getRefundStatus() == RefundStatus.REJECTED
+                            || i.getRefundStatus() == RefundStatus.FAILED);
 
-                if (allCompleted) {
-                    rr.setStatus(ReturnStatus.COMPLETED);
-                    rr.setProcessedAt(new Date());
-                    returnRequestRepository.save(rr);
-                }
-            } else if (status == RefundStatus.FAILED) {
-                // Nếu hoàn tiền lỗi, có thể giữ nguyên APPROVED hoặc xử lý tùy nghiệp vụ
-                // Ở đây ta giữ nguyên để admin có thể thử lại
+            if (isAllProcessed) {
+                returnRequest.setStatus(ReturnStatus.COMPLETED);
+                returnRequest.setProcessedAt(new Date());
+                returnRequestRepository.save(returnRequest);
             }
         }
 
-        // Gửi thông báo cho user nếu hoàn tiền thành công
+        // 6. Gửi thông báo Notification
+        User customer = item.getOrder().getUser();
+        Long orderId = item.getOrder().getId();
+
         if (status == RefundStatus.COMPLETED) {
-            String content = "Sản phẩm '" + item.getProductName() + "' trong đơn hàng #" + item.getOrder().getId() + " đã được hoàn tiền thành công.";
-            notificationService.createNotification(
-                    item.getOrder().getUser(),
-                    "Thông báo hoàn tiền",
-                    content,
-                    "SUCCESS",
-                    item.getOrder().getId()
-            );
-        }
-        if (status == RefundStatus.REJECTED) {
-
-            String content =
-                    "Yêu cầu hoàn tiền cho sản phẩm '"
-                            + item.getProductName()
-                            + "' trong đơn hàng #"
-                            + item.getOrder().getId()
-                            + " đã bị từ chối.";
-
-            notificationService.createNotification(
-                    item.getOrder().getUser(),
-                    "Thông báo hoàn tiền",
-                    content,
-                    "WARNING",
-                    item.getOrder().getId()
-            );
+            String message = String.format("Sản phẩm '%s' trong đơn hàng #%d đã được hoàn tiền thành công.",
+                    item.getProductName(), orderId);
+            notificationService.createNotification(customer, "Hoàn tiền thành công", message, "SUCCESS", orderId);
+        } else if (status == RefundStatus.REJECTED) {
+            String message = String.format("Yêu cầu hoàn tiền cho sản phẩm '%s' trong đơn hàng #%d đã bị từ chối.",
+                    item.getProductName(), orderId);
+            notificationService.createNotification(customer, "Hoàn tiền bị từ chối", message, "WARNING", orderId);
         }
     }
 }

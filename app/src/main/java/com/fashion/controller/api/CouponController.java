@@ -46,4 +46,9 @@ public class CouponController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(couponService.applyCoupon(userId, dto, currentTotal));
     }
+    @GetMapping("/wallet")
+    public ResponseEntity<List<CouponResponseDTO>> getMyWalletCoupons() {
+        Long userId = SecurityUtils.getAuthenticatedUserId();
+        return ResponseEntity.ok(couponService.getMyWallet(userId));
+    }
 }

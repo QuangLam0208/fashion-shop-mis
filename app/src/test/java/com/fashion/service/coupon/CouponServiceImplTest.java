@@ -1,6 +1,7 @@
 package com.fashion.service.coupon;
 
 import com.fashion.dto.request.ApplyCouponRequestDTO;
+import com.fashion.dto.request.CollectCouponRequestDTO;
 import com.fashion.dto.request.UpdateCouponRequestDTO;
 import com.fashion.dto.response.ApplyCouponResponseDTO;
 import com.fashion.dto.response.CouponResponseDTO;
@@ -8,10 +9,12 @@ import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.exception.BadRequestException;
 import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Coupon;
+import com.fashion.model.User;
 import com.fashion.model.UserCoupon;
 import com.fashion.model.enums.DiscountType;
 import com.fashion.repository.CouponRepository;
 import com.fashion.repository.UserCouponRepository;
+import com.fashion.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +23,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,6 +41,9 @@ public class CouponServiceImplTest {
     @Mock
     private UserCouponRepository userCouponRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private CouponServiceImpl couponService;
 
@@ -50,8 +58,75 @@ public class CouponServiceImplTest {
                 .minOrderAmount(200000.0).usageLimit(100).usedCount(0)
                 .build();
 
-        validUserCoupon = UserCoupon.builder().used(false).build();
+        validUserCoupon = UserCoupon.builder()
+                .used(false)
+                .coupon(validCoupon)
+                .build();
     }
+
+    // ==========================================
+    // UNIT TESTS CHO VOUCHER WALLET (AC-BE-US39-03)
+    // ==========================================
+
+    @Test
+    void collectCoupon_Success() {
+        when(couponRepository.findById(1L)).thenReturn(Optional.of(validCoupon));
+        when(userCouponRepository.existsByUserIdAndCouponId(1L, 1L)).thenReturn(false);
+
+        User mockUser = new User();
+        mockUser.setId(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+
+        CollectCouponRequestDTO request = new CollectCouponRequestDTO(1L);
+        MessageResponseDTO response = couponService.collectCoupon(1L, request);
+
+        assertNotNull(response);
+        assertEquals("Thu thập mã giảm giá thành công!", response.getMessage());
+    }
+
+    @Test
+    void collectCoupon_Duplicate_ThrowsBadRequest() {
+        when(couponRepository.findById(1L)).thenReturn(Optional.of(validCoupon));
+        when(userCouponRepository.existsByUserIdAndCouponId(1L, 1L)).thenReturn(true);
+
+        CollectCouponRequestDTO request = new CollectCouponRequestDTO(1L);
+
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> couponService.collectCoupon(1L, request));
+        assertEquals("You have already collected this coupon.", ex.getMessage());
+    }
+
+    @Test
+    void collectCoupon_ExhaustedLimit_ThrowsBadRequest() {
+        validCoupon.setUsedCount(100);
+        validCoupon.setUsageLimit(100); // Đã chạm giới hạn
+
+        when(couponRepository.findById(1L)).thenReturn(Optional.of(validCoupon));
+
+        CollectCouponRequestDTO request = new CollectCouponRequestDTO(1L);
+
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> couponService.collectCoupon(1L, request));
+        assertEquals("Mã giảm giá đã đạt giới hạn thu thập hoặc sử dụng!", ex.getMessage());
+    }
+
+    @Test
+    void getMyWallet_Success() {
+        when(userCouponRepository.findByUserIdAndUsedFalse(1L))
+                .thenReturn(Collections.singletonList(validUserCoupon));
+
+        List<CouponResponseDTO> response = couponService.getMyWallet(1L);
+
+        assertNotNull(response);
+        assertEquals(1, response.size());
+        assertEquals("TESTCODE", response.get(0).getCode());
+        assertTrue(response.get(0).isCollected());
+        assertFalse(response.get(0).isUsed());
+    }
+
+    // ==========================================
+    // CÁC TEST CŨ CỦA BẠN
+    // ==========================================
 
     @Test
     void applyCoupon_PercentageDiscount_Success() {
@@ -117,7 +192,7 @@ public class CouponServiceImplTest {
     @Test
     void updateCoupon_Success() {
         UpdateCouponRequestDTO updateDto = new UpdateCouponRequestDTO();
-        updateDto.setCode("NEWCODE"); // This will now update the code
+        updateDto.setCode("NEWCODE");
         updateDto.setDiscountValue(15.0);
         updateDto.setDiscountType(DiscountType.FIXED_AMOUNT);
         updateDto.setStartDate(Instant.now().plusSeconds(60));
@@ -132,7 +207,7 @@ public class CouponServiceImplTest {
 
         CouponResponseDTO response = couponService.updateCoupon(1L, updateDto);
 
-        assertEquals("NEWCODE", response.getCode()); // Code is now updated
+        assertEquals("NEWCODE", response.getCode());
         assertEquals(15.0, response.getDiscountValue());
         assertEquals(DiscountType.FIXED_AMOUNT, response.getDiscountType());
         assertEquals(updateDto.getStartDate(), response.getStartDate());
