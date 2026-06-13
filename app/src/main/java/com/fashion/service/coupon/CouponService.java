@@ -32,4 +32,6 @@ public interface CouponService {
     CouponResponseDTO updateCoupon(Long couponId, UpdateCouponRequestDTO dto);
 
     MessageResponseDTO toggleCouponStatus(Long couponId);
+    /// Lấy danh sách ví voucher của user
+    List<CouponResponseDTO> getMyWallet(Long userId);
 }
