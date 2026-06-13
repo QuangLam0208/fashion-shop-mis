@@ -63,7 +63,6 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = couponRepository.findById(dto.getCouponId())
                 .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không tồn tại!"));
 
-        // Mã giảm giá không hợp lệ hoặc đã hết hạn
         if (!coupon.isActive()) {
             throw new BadRequestException("Mã giảm giá không còn hiệu lực!");
         }
@@ -72,9 +71,14 @@ public class CouponServiceImpl implements CouponService {
             throw new BadRequestException("Mã giảm giá đã hết hạn!");
         }
 
-        // Mã giảm giá đã được thu thập trước đó
+        // AC-BE-US39-04: Validate exhausted coupon limit
+        if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
+            throw new BadRequestException("Mã giảm giá đã đạt giới hạn thu thập hoặc sử dụng!");
+        }
+
+        // AC-BE-US39-01: Duplicate Record Prevention & Error Message
         if (userCouponRepository.existsByUserIdAndCouponId(userId, coupon.getId())) {
-            throw new BadRequestException("Bạn đã thu thập mã giảm giá này trước đó!");
+            throw new BadRequestException("You have already collected this coupon.");
         }
 
         User user = userRepository.findById(userId)
@@ -262,5 +266,26 @@ public class CouponServiceImpl implements CouponService {
                 .active(coupon.isActive())
                 .collected(false)
                 .build();
+    }
+    @Override
+    public List<CouponResponseDTO> getMyWallet(Long userId) {
+        List<UserCoupon> userCoupons = userCouponRepository.findByUserIdAndUsedFalse(userId);
+
+        return userCoupons.stream().map(uc -> {
+            Coupon coupon = uc.getCoupon();
+            return CouponResponseDTO.builder()
+                    .couponId(coupon.getId())
+                    .code(coupon.getCode())
+                    .discountValue(coupon.getDiscountValue())
+                    .discountType(coupon.getDiscountType())
+                    .startDate(coupon.getStartDate())
+                    .expiryDate(coupon.getExpiryDate())
+                    .minOrderAmount(coupon.getMinOrderAmount())
+                    .usageLimit(coupon.getUsageLimit())
+                    .active(coupon.isActive())
+                    .used(uc.isUsed())
+                    .collected(true)
+                    .build();
+        }).toList();
     }
 }
