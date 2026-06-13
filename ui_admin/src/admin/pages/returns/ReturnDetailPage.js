@@ -1,10 +1,13 @@
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
-import { Alert, Button, Card, Col, Descriptions, Input, message, Modal, Row, Space, Spin, Table, Tag } from 'antd';
+import { Alert, Button, Card, Col, Descriptions, Input, message, Modal, Row, Space, Spin, Table, Tag, Typography, Select } from 'antd';
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import { adminReturnService } from '../../services/returnService';
 import { formatCurrency, formatDateTime } from '../../../shared/utils/formatters';
+
+const { Text } = Typography;
+const { Option } = Select;
 
 const ReturnDetailPage = () => {
   const { id } = useParams();
@@ -13,6 +16,7 @@ const ReturnDetailPage = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
+  const [updatingRefundItem, setUpdatingRefundItem] = useState(null); // State khóa dropdown khi đang gọi API
 
   // States: Modal Reject
   const [rejectModal, setRejectModal] = useState(false);
@@ -33,7 +37,7 @@ const ReturnDetailPage = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  // Hàm xử lý Approve / Reject (US-35)
+  // Xử lý Approve / Reject phiếu trả hàng
   const processRequest = async (newStatus, reason = null) => {
     setActing(true);
     try {
@@ -41,8 +45,6 @@ const ReturnDetailPage = () => {
       if (reason) payload.rejectionReason = reason;
 
       const res = await adminReturnService.processRequest(id, payload);
-      
-      // AC-FE-US35-01: Toast thành công, đóng modal, refetch data
       message.success(res.message || `Đã ${newStatus === 'APPROVED' ? 'Duyệt' : 'Từ chối'} yêu cầu thành công!`);
       if (newStatus === 'REJECTED') {
         setRejectModal(false);
@@ -67,13 +69,26 @@ const ReturnDetailPage = () => {
   };
 
   const handleRejectSubmit = () => {
-    // AC-FE-US35-03: Ràng buộc nhập lý do từ chối
     if (!rejectReason.trim()) {
       setRejectError('Vui lòng nhập lý do từ chối yêu cầu hoàn trả');
       return;
     }
     setRejectError('');
     processRequest('REJECTED', rejectReason.trim());
+  };
+
+  // AC-US36: Cập nhật trạng thái hoàn tiền cho từng món hàng (Item)
+  const handleUpdateRefundStatus = async (itemId, newStatus) => {
+    setUpdatingRefundItem(itemId);
+    try {
+      await adminReturnService.updateRefundStatus(itemId, newStatus);
+      message.success(`Cập nhật trạng thái hoàn tiền thành [${newStatus}] thành công!`);
+      load(); // Tải lại dữ liệu để đồng bộ trạng thái phiếu (Backend tự nhảy sang COMPLETED nếu mọi Item xong)
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Lỗi cập nhật trạng thái hoàn tiền!');
+    } finally {
+      setUpdatingRefundItem(null);
+    }
   };
 
   if (loading) return <div style={{ display:'flex', justifyContent:'center', paddingTop:80 }}><Spin size="large" /></div>;
@@ -96,7 +111,41 @@ const ReturnDetailPage = () => {
     },
     { title: 'Số lượng', dataIndex: 'quantity', align: 'center' },
     { title: 'Đơn giá', dataIndex: 'price', align: 'right', render: v => formatCurrency(v) },
-    { title: 'Hoàn tiền', dataIndex: 'refundStatus', render: s => <Tag color={s === 'PENDING' ? 'gold' : s === 'NONE' ? 'default' : 'blue'}>{s}</Tag> }
+    { 
+      title: 'Trạng thái Hoàn tiền', 
+      key: 'refundStatus',
+      align: 'center',
+      render: (_, r) => {
+        const s = r.refundStatus;
+        const isUpdating = updatingRefundItem === r.orderItemId;
+
+        // AC-FE-US36-01 & 03: Hiển thị Dropdown Cập nhật nếu Phiếu đã APPROVED và Món hàng này đang PENDING
+        if (data.status === 'APPROVED' && s === 'PENDING') {
+          return (
+            <Select
+              size="small"
+              value={s}
+              style={{ width: 130, fontWeight: 600, color: '#faad14' }}
+              loading={isUpdating}
+              disabled={isUpdating} // Khóa nút khi đang cập nhật (AC-FE-US36-05)
+              onChange={(val) => handleUpdateRefundStatus(r.orderItemId, val)}
+            >
+              <Option value="PENDING" disabled>PENDING</Option>
+              <Option value="COMPLETED"><span style={{ color: '#52c41a' }}>COMPLETED</span></Option>
+              <Option value="FAILED"><span style={{ color: '#ff4d4f' }}>FAILED</span></Option>
+              <Option value="REJECTED"><span style={{ color: '#ff4d4f' }}>REJECTED</span></Option>
+            </Select>
+          );
+        }
+
+        // Với các trạng thái đã hoàn tất (hoặc Phiếu chưa duyệt) thì hiển thị dạng Tag nhãn cứng
+        let color = 'default';
+        if (s === 'PENDING') color = 'gold';
+        if (s === 'COMPLETED') color = 'green';
+        if (s === 'FAILED' || s === 'REJECTED') color = 'red';
+        return <Tag color={color} style={{ fontWeight: 600 }}>{s}</Tag>;
+      } 
+    }
   ];
 
   return (
@@ -109,15 +158,24 @@ const ReturnDetailPage = () => {
       <Row gutter={[16,16]}>
         <Col xs={24} lg={16}>
           {/* Thông tin phiếu và Khách hàng */}
-          <Card title="Thông tin chung" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)', marginBottom:16 }}>
+          <Card title="Thông tin chung & Theo dõi Hoàn tiền" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)', marginBottom:16 }}>
             <Descriptions column={{ xs:1, sm:2 }} size="small" labelStyle={{ color: '#64748b' }}>
               <Descriptions.Item label="Khách hàng"><strong style={{ color: '#1677ff' }}>{data.customerName}</strong></Descriptions.Item>
               <Descriptions.Item label="SĐT">{data.customerPhone}</Descriptions.Item>
               <Descriptions.Item label="Email">{data.customerEmail}</Descriptions.Item>
-              <Descriptions.Item label="Đơn hàng gốc">#{data.orderId} ({data.paymentMethod})</Descriptions.Item>
+              
+              {/* AC-FE-US36-04: Hiển thị phương thức TT gốc & Cho phép Copy dễ dàng */}
+              <Descriptions.Item label="Nguồn thanh toán gốc">
+                <Text copyable style={{ fontWeight: 600, color: '#722ed1' }}>{data.paymentMethod}</Text>
+              </Descriptions.Item>
+              
+              <Descriptions.Item label="Đơn hàng gốc">#{data.orderId}</Descriptions.Item>
               <Descriptions.Item label="Ngày tạo YC">{formatDateTime(data.requestDate)}</Descriptions.Item>
-              <Descriptions.Item label="Trạng thái hiện tại">
-                <Tag color={data.status === 'PENDING' ? 'orange' : data.status === 'APPROVED' ? 'green' : 'red'}>{data.status}</Tag>
+              
+              <Descriptions.Item label="Trạng thái Phiếu">
+                <Tag color={data.status === 'PENDING' ? 'orange' : data.status === 'COMPLETED' ? 'blue' : data.status === 'APPROVED' ? 'green' : 'red'}>
+                  {data.status}
+                </Tag>
               </Descriptions.Item>
               
               <Descriptions.Item label="Lý do trả hàng" span={2}>
@@ -128,8 +186,8 @@ const ReturnDetailPage = () => {
             </Descriptions>
           </Card>
 
-          {/* Danh sách mặt hàng */}
-          <Card title="Sản phẩm hoàn trả" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)', marginBottom: 16 }}>
+          {/* Danh sách mặt hàng & Chọn Trạng thái Refund */}
+          <Card title="Sản phẩm hoàn trả & Xử lý Hoàn tiền" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)', marginBottom: 16 }}>
             <Table dataSource={data.items} columns={itemColumns} rowKey="orderItemId" pagination={false} size="small" bordered />
           </Card>
 
@@ -138,7 +196,6 @@ const ReturnDetailPage = () => {
             <Card title="Ảnh minh chứng (Khách tải lên)" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)' }}>
               <Space wrap>
                 {data.imageUrls.map((url, idx) => (
-                  /* AC-FE-US35-04: Mở ảnh Tab mới kích thước thực */
                   <a key={idx} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', overflow: 'hidden', borderRadius: 8, border: '1px solid #d9d9d9' }}>
                     <img 
                       src={url} 
@@ -154,30 +211,31 @@ const ReturnDetailPage = () => {
           )}
         </Col>
 
-        {/* Khung Tác vụ (AC-FE-US35-02) */}
+        {/* Khung Tác vụ Phiếu */}
         <Col xs={24} lg={8}>
           <Card title="Bảng điều khiển tác vụ" style={{ borderRadius:12, border:'none', boxShadow:'0 1px 8px rgba(0,0,0,0.08)' }}>
             {data.status === 'PENDING' ? (
               <Space direction="vertical" style={{ width:'100%' }}>
                 <Alert message="Yêu cầu đang chờ xét duyệt" type="warning" showIcon style={{ marginBottom: 12 }} />
-                
                 <Button type="primary" icon={<CheckOutlined />} block size="large" loading={acting}
                   style={{ background:'#22c55e', borderColor:'#22c55e', fontWeight: 600 }}
-                  onClick={handleApprove}>
-                  Phê Duyệt Yêu Cầu
-                </Button>
-                
+                  onClick={handleApprove}>Phê Duyệt Yêu Cầu</Button>
                 <Button danger type="primary" icon={<CloseOutlined />} block size="large" 
                   style={{ fontWeight: 600 }}
-                  onClick={() => setRejectModal(true)}>
-                  Từ Chối Yêu Cầu
-                </Button>
+                  onClick={() => setRejectModal(true)}>Từ Chối Yêu Cầu</Button>
               </Space>
+            ) : data.status === 'APPROVED' ? (
+              <Alert 
+                message="Phiếu đã được duyệt" 
+                description="Bạn có thể cập nhật trạng thái hoàn tiền cho từng sản phẩm ở bảng bên trái. Phiếu sẽ tự động hoàn tất (COMPLETED) khi tất cả sản phẩm đều được cập nhật hoàn tiền xong." 
+                type="info" 
+                showIcon 
+              />
             ) : (
               <Alert 
-                message="Đã xử lý" 
-                description={`Yêu cầu này đã được chuyển sang trạng thái ${data.status} vào lúc ${formatDateTime(data.processedAt)}.`} 
-                type={data.status === 'APPROVED' ? 'success' : 'error'} 
+                message="Phiếu đã Đóng" 
+                description={`Yêu cầu này đã hoàn tất quá trình xử lý và được chuyển sang trạng thái ${data.status}.`} 
+                type={data.status === 'COMPLETED' ? 'success' : 'error'} 
                 showIcon 
               />
             )}
@@ -193,17 +251,10 @@ const ReturnDetailPage = () => {
         onCancel={() => { setRejectModal(false); setRejectReason(''); setRejectError(''); }} 
         okText="Xác nhận Từ chối" 
         cancelText="Đóng" 
-        okButtonProps={{ danger: true, disabled: !rejectReason.trim(), loading: acting }} /* Khóa nút nếu lý do trống */
+        okButtonProps={{ danger: true, disabled: !rejectReason.trim(), loading: acting }}
       >
         <p>Vui lòng ghi rõ lý do từ chối để thông báo tới khách hàng:</p>
-        <Input.TextArea 
-          rows={4} 
-          placeholder="Ví dụ: Hình ảnh minh chứng không rõ ràng..." 
-          value={rejectReason} 
-          onChange={e => { setRejectReason(e.target.value); setRejectError(''); }} 
-          status={rejectError ? 'error' : ''}
-        />
-        {/* AC-FE-US35-03: Cảnh báo đỏ ngay dưới ô nhập liệu */}
+        <Input.TextArea rows={4} value={rejectReason} onChange={e => { setRejectReason(e.target.value); setRejectError(''); }} status={rejectError ? 'error' : ''} />
         {rejectError && <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 6 }}>{rejectError}</div>}
       </Modal>
     </div>

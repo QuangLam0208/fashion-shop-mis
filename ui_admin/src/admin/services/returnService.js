@@ -19,5 +19,11 @@ export const adminReturnService = {
     // payload: { newStatus: "APPROVED" | "REJECTED", rejectionReason: "..." }
     const res = await axiosInstance.put(`/api/admin/return-requests/${requestId}/process`, payload);
     return res.data;
+  },
+  updateRefundStatus: async (itemId, status) => {
+    const res = await axiosInstance.put(`/api/admin/return-requests/refund/${itemId}`, null, {
+      params: { status }
+    });
+    return res.data;
   }
 };

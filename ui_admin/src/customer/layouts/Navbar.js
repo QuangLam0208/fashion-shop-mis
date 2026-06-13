@@ -1,7 +1,7 @@
 // src/customer/layouts/Navbar.js
 import React, { useState } from 'react';
 import { Badge, Button, Drawer, Avatar, Dropdown } from 'antd';
-import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, OrderedListOutlined, HeartOutlined } from '@ant-design/icons';
+import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, OrderedListOutlined, HeartOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import useCart           from '../hooks/useCart';
 import useCustomerAuth   from '../hooks/useCustomerAuth';
@@ -30,6 +30,18 @@ const Navbar = () => {
       label: 'Đơn mua',
       icon: <ShoppingCartOutlined />,
       onClick: () => navigate('/account/orders')
+    },
+    {
+      key: 'returns',
+      label: 'Yêu cầu trả hàng',
+      icon: <HistoryOutlined />,
+      onClick: () => navigate('/account/returns')
+    },
+    {
+      key: 'wallet',
+      label: 'Ví Voucher',
+      icon: <WalletOutlined />,
+      onClick: () => navigate('/account/wallet')
     },
     {
       key: 'wishlist',
