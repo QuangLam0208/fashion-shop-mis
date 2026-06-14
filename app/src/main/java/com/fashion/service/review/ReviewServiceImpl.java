@@ -51,15 +51,6 @@ public class ReviewServiceImpl implements ReviewService {
             throw new RuntimeException("Bạn chỉ có thể đánh giá sản phẩm đã mua và đã giao thành công!");
         }
 
-        // Validate rating
-        if (dto.getRating() < 1 || dto.getRating() > 5) {
-            throw new RuntimeException("Điểm đánh giá phải từ 1 đến 5!");
-        }
-
-        // if (dto.getComment() == null || dto.getComment().isBlank()) {
-        // throw new RuntimeException("Nội dung nhận xét không được để trống!");
-        // }
-
         // Lưu đánh giá
         Review review = Review.builder()
                 .user(user)
@@ -69,7 +60,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .createdAt(Instant.now())
                 .build();
 
-        // Bỏ chức năng thêm hình ảnh
+        // Thêm hình ảnh
 
         // Nếu có orderItemId, đánh dấu OrderItem là đã đánh giá
         if (dto.getOrderItemId() != null) {
