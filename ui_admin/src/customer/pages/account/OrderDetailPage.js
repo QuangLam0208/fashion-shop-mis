@@ -100,23 +100,16 @@ const OrderDetailPage = () => {
   };
 
   const submitReturnRequest = async () => {
-    // Validation
     if (selectedReturnItems.length === 0) return message.warning('Vui lòng chọn ít nhất 1 sản phẩm để trả hàng.');
     if (!returnReason.trim()) return message.warning('Vui lòng nhập lý do trả hàng.');
     
-    // === ĐÃ SỬA LẠI LOGIC TRÍCH XUẤT ẢNH BAO PHỦ MỌI TRƯỜNG HỢP ===
     const uploadedUrls = fileList.map(f => {
-      // 1. Nếu Backend trả về Object chứa key 'url'
       if (f.response && f.response.url) return f.response.url;
-      // 2. Dự phòng nếu trả về key 'message'
       if (f.response && f.response.message) return f.response.message;
-      // 3. Dự phòng nếu trả về trực tiếp 1 chuỗi string URL
       if (typeof f.response === 'string') return f.response;
-      // 4. Nếu là ảnh đã có sẵn
       if (f.url) return f.url;
-      
       return null;
-    }).filter(Boolean); // Lọc sạch các giá trị rỗng/undefined
+    }).filter(Boolean); 
     
     if (uploadedUrls.length === 0) {
       return message.warning('Vui lòng chờ ảnh tải lên hoàn tất trước khi bấm Gửi, hoặc tải lại ảnh minh chứng.');
@@ -126,29 +119,6 @@ const OrderDetailPage = () => {
     }
 
     setSubmittingReturn(true);
-    // try {
-    //   // Payload map ĐÚNG CHUẨN SubmitReturnRequestDTO
-    //   const payload = {
-    //     orderId: order.id || order.orderId,
-    //     itemIds: selectedReturnItems,
-    //     reason: returnReason.trim(),
-    //     description: returnDescription.trim(),
-    //     imageUrls: uploadedUrls // Mảng chứa các chuỗi (String) URL ảnh
-    //   };
-
-    //   await customerReturnService.submitReturnRequest(payload);
-      
-    //   // AC-FE-US33-02
-    //   message.success('Return request submitted successfully. Please wait for Admin review.');
-    //   setReturnModalVisible(false);
-    //   navigate('/account/returns'); 
-      
-    // } catch (error) {
-    //   // AC-FE-US33-03
-    //   message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu trả hàng');
-    // } finally {
-    //   setSubmittingReturn(false);
-    // }
     try {
       const payload = {
         orderId: order.id || order.orderId,
@@ -160,17 +130,10 @@ const OrderDetailPage = () => {
 
       await customerReturnService.submitReturnRequest(payload);
       
-      // 1. Hiện thông báo thành công
       message.success('Return request submitted successfully. Please wait for Admin review.');
-      
-      // 2. Đóng Modal
       setReturnModalVisible(false);
-      
-      // 3. XÓA dòng navigate('/account/returns') đi
-      // THAY BẰNG: Gọi lại hàm fetch để làm mới dữ liệu đơn hàng hiện tại
       fetchOrderDetail();
       
-      // Reset lại form
       setReturnReason('');
       setReturnDescription('');
       setFileList([]);
@@ -183,7 +146,6 @@ const OrderDetailPage = () => {
     }
   };
 
-  // Xác định vị trí tiến trình giao hàng
   const getStepCurrent = (status) => {
     switch(status) {
       case 'PENDING_CONFIRMATION':
@@ -203,10 +165,14 @@ const OrderDetailPage = () => {
   
   // Xác định các mặt hàng Đủ điều kiện Trả hàng
   const itemsList = order.items || order.orderItems || [];
+  
+  // Lọc sản phẩm: Chưa bị gắn returnRequestId và không ở trạng thái RETURNED
   const eligibleReturnItems = itemsList.filter(
-    item => (item.status === 'DELIVERED' || item.status === 'COMPLETED') && !item.returnRequestId
+    item => (item.status === 'DELIVERED' || item.status === 'COMPLETED') && !item.returnRequestId && item.status !== 'RETURNED'
   );
-  const canReturn = eligibleReturnItems.length > 0;
+  
+  // Nút chỉ xuất hiện nếu Cả đơn hàng đang ở trạng thái DELIVERED (Ẩn nếu COMPLETED)
+  const canReturn = order.status === 'DELIVERED' && eligibleReturnItems.length > 0;
 
   const columns = [
     { title: 'Sản phẩm', key: 'product', render: (_, record) => (
@@ -223,7 +189,18 @@ const OrderDetailPage = () => {
     },
     { title: 'Đơn giá', dataIndex: 'price', align: 'right', render: (price) => formatCurrency(price) },
     { title: 'Số lượng', dataIndex: 'quantity', align: 'center' },
-    { title: 'Thành tiền', key: 'total', align: 'right', render: (_, record) => <strong style={{ color: '#e53935' }}>{formatCurrency(record.price * record.quantity)}</strong> }
+    { title: 'Thành tiền', key: 'total', align: 'right', render: (_, record) => <strong style={{ color: '#e53935' }}>{formatCurrency(record.price * record.quantity)}</strong> },
+    { 
+      title: 'Trạng thái SP', 
+      key: 'itemStatus', 
+      align: 'center', 
+      render: (_, record) => {
+        if (record.returnRequestId || record.status === 'RETURNED') {
+          return <Tag color="volcano">Đã trả hàng</Tag>;
+        }
+        return <Tag color={STATUS_COLORS[record.status] || 'blue'}>{STATUS_MAP[record.status] || record.status || 'N/A'}</Tag>;
+      } 
+    }
   ];
 
   return (
@@ -319,7 +296,6 @@ const OrderDetailPage = () => {
         okText="Submit Request"
         cancelText="Hủy"
         width={600}
-        // Vô hiệu hóa nút Submit khi đang tiến hành upload hình ảnh lên Cloudinary
         okButtonProps={{ disabled: submittingReturn || fileList.some(f => f.status === 'uploading') }}
       >
         <div style={{ marginBottom: 16 }}>
@@ -370,7 +346,7 @@ const OrderDetailPage = () => {
             }}
             beforeUpload={(file, newFileList) => {
               if (fileList.length + newFileList.length > 10) {
-                message.error('Tối đa 10 ảnh minh họa'); // AC-FE-US33-01
+                message.error('Tối đa 10 ảnh minh họa'); 
                 return Upload.LIST_IGNORE;
               }
               return true;
