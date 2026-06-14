@@ -52,12 +52,12 @@ public class DashboardServiceImpl implements DashboardService {
         Date endOfLastMonth = endLastMonthCal.getTime();
 
         // KPI: Doanh thu
-        Double revenueThisMonth = orderRepository.calculateTotalRevenueAll(startOfThisMonth, now);
-        Double revenueLastMonth = orderRepository.calculateTotalRevenueAll(startOfLastMonth, endOfLastMonth);
+        Double revenueThisMonth = orderRepository.calculateTotalRevenueAll(startOfThisMonth.toInstant(), now.toInstant());
+        Double revenueLastMonth = orderRepository.calculateTotalRevenueAll(startOfLastMonth.toInstant(), endOfLastMonth.toInstant());
 
         // KPI: Đơn hàng
-        int ordersThisMonth = orderRepository.countOrders(startOfThisMonth, now);
-        int ordersLastMonth = orderRepository.countOrders(startOfLastMonth, endOfLastMonth);
+        int ordersThisMonth = orderRepository.countOrders(startOfThisMonth.toInstant(), now.toInstant());
+        int ordersLastMonth = orderRepository.countOrders(startOfLastMonth.toInstant(), endOfLastMonth.toInstant());
 
         // KPI: Khách hàng
         long totalCustomers = userRepository.countByRole(Role.CUSTOMER);
