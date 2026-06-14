@@ -10,4 +10,9 @@ export const customerReturnService = {
     const res = await axiosInstance.get('/api/return-requests/list');
     return res.data;
   },
+
+  getReturnRequestById: async (id) => {
+    const res = await axiosInstance.get(`/api/return-requests/${id}`);
+    return res.data;
+  }
 };

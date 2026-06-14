@@ -1,11 +1,12 @@
-import { CheckCircleOutlined, HomeOutlined, PlusOutlined } from '@ant-design/icons';
-import { Breadcrumb, Button, Card, Col, Divider, Radio, Row, Select, Space, Table, Typography, message, Spin, Tag } from 'antd';
+import { CheckCircleOutlined, HomeOutlined, PlusOutlined, WalletOutlined } from '@ant-design/icons';
+import { Breadcrumb, Button, Card, Col, Divider, Radio, Row, Select, Space, Table, Typography, message, Spin, Tag, Input } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../../shared/utils/formatters';
 import useCart from '../../hooks/useCart';
 import { checkoutService } from '../../services/checkoutService';
 import { customerProfileService } from '../../services/customerProfileService';
+import CouponWalletDrawer from '../../components/CouponWalletDrawer';
 
 const { Text, Title } = Typography;
 
@@ -28,6 +29,7 @@ const CheckoutPage = () => {
   const [couponError, setCouponError] = useState('');
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
 
   useEffect(() => {
     loadCart();
@@ -88,25 +90,37 @@ const CheckoutPage = () => {
     },
   };
 
-  const handleApplyCoupon = async () => {
-    if (!couponCodeInput.trim()) {
-      setCouponError('Vui lòng nhập mã giảm giá');
+  // THÊM THAM SỐ codeToApply (Tùy chọn)
+  const handleApplyCoupon = async (codeToApply = null) => {
+    // 1. Lấy mã từ tham số truyền vào (từ Drawer) HOẶC lấy từ ô Input nhập tay
+    // LƯU Ý: Phải check typeof string vì sự kiện onClick có thể truyền Event object vào
+    const rawCode = typeof codeToApply === 'string' ? codeToApply : couponCodeInput;
+    const code = rawCode ? rawCode.trim().toUpperCase() : '';
+
+    if (!code) {
+      setCouponError('Vui lòng nhập hoặc chọn mã giảm giá!');
       return;
     }
+
     setCouponError('');
     setApplyingCoupon(true);
     
     try {
+      // Dùng checkoutService (hoặc customerCouponService tùy bạn cấu hình)
       const res = await checkoutService.applyCoupon({
-        couponCode: couponCodeInput.trim().toUpperCase(),
+        couponCode: code,
         orderAmount: totalAmount 
       });
       
       const discountValue = res.discountAmount ?? res.discount ?? 0;
       setAppliedCoupon({
-        code: couponCodeInput.trim().toUpperCase(),
+        code: code,
         discountAmount: discountValue
       });
+      
+      setCouponCodeInput(code); // Điền luôn mã vừa chọn vào ô Input cho khách thấy
+      setIsWalletOpen(false);   // Tự động cụp Ví Voucher xuống
+      
       message.success('Áp dụng mã giảm giá thành công!');
       
     } catch (error) {
@@ -139,7 +153,8 @@ const CheckoutPage = () => {
       // === CẬP NHẬT PAYLOAD CHUẨN: Dùng addressId thay cho chuỗi text ===
       const payload = {
         cartItemIds: selectedItemIds,
-        addressId: selectedAddressId, 
+        // addressId: selectedAddressId, 
+        shippingAddress: selectedAddressId,
         paymentMethod: paymentMethod,
         couponCode: appliedCoupon ? appliedCoupon.code : null
       };
@@ -277,36 +292,30 @@ const CheckoutPage = () => {
 
             <Card bordered={false} style={{ borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, fontWeight: 600 }}>Chọn Voucher:</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600 }}>Mã Giảm Giá</span>
+                  <a onClick={() => setIsWalletOpen(true)} style={{ color: '#1677ff', fontSize: 13, fontWeight: 500 }}>
+                    <WalletOutlined /> Chọn từ Ví Voucher
+                  </a>
+                </div>
+                
                 <Space.Compact style={{ width: '100%' }}>
-                  <Select
-                    placeholder="Chọn voucher ưu đãi..."
-                    style={{ flex: 1 }}
+                  <Input
+                    placeholder="Nhập mã giảm giá..."
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value)}
                     disabled={!!appliedCoupon}
-                    onChange={(value) => setCouponCodeInput(value)}
-                    value={couponCodeInput || undefined}
-                    allowClear
-                    onClear={() => setCouponCodeInput('')}
-                  >
-                    {availableCoupons.map(coupon => (
-                      <Select.Option key={coupon.couponId} value={coupon.code} disabled={coupon.used}>
-                        {coupon.code} - Giảm {coupon.discountValue} {coupon.discountType === 'PERCENTAGE' ? '%' : 'VNĐ'}
-                        {coupon.used ? ' (Đã dùng)' : ''}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                  
+                    onPressEnter={() => handleApplyCoupon()}
+                  />
                   {!appliedCoupon ? (
-                    <Button type="primary" onClick={handleApplyCoupon} loading={applyingCoupon} style={{ background: '#1a1a1a' }}>
-                      Áp dụng
-                    </Button>
+                    <Button type="primary" onClick={() => handleApplyCoupon()} loading={applyingCoupon} style={{ background: '#1a1a1a' }}>Áp dụng</Button>
                   ) : (
                     <Button danger onClick={handleRemoveCoupon}>Hủy</Button>
                   )}
                 </Space.Compact>
                 
                 {couponError && <Text type="danger" style={{ fontSize: 13, marginTop: 6, display: 'block' }}>{couponError}</Text>}
-                {appliedCoupon && <Text type="success" style={{ fontSize: 13, marginTop: 6, display: 'block' }}>Áp dụng thành công mã: {appliedCoupon.code}</Text>}
+                {appliedCoupon && <Text type="success" style={{ fontSize: 13, marginTop: 6, display: 'block' }}>Đã áp dụng mã: {appliedCoupon.code}</Text>}
               </div>
 
               <Divider style={{ margin: '16px 0' }} />
@@ -315,16 +324,13 @@ const CheckoutPage = () => {
                 <Text style={{ fontSize: 15, color: '#555' }}>Tổng tiền hàng:</Text>
                 <Text style={{ fontSize: 15 }}>{formatCurrency(totalAmount)}</Text>
               </div>
-
               {appliedCoupon && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <Text style={{ fontSize: 15, color: '#555' }}>Giảm giá Voucher:</Text>
                   <Text style={{ fontSize: 15, color: '#389e0d' }}>- {formatCurrency(discountAmount)}</Text>
                 </div>
               )}
-              
               <Divider style={{ margin: '12px 0' }} />
-              
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <Title level={5} style={{ margin: 0 }}>Tổng thanh toán:</Title>
                 <Title level={3} style={{ margin: 0, color: '#e53935' }}>{formatCurrency(finalAmount)}</Title>
@@ -345,6 +351,12 @@ const CheckoutPage = () => {
           </Col>
         </Row>
       </div>
+      <CouponWalletDrawer 
+        open={isWalletOpen} 
+        onClose={() => setIsWalletOpen(false)} 
+        cartTotal={totalAmount} 
+        onApplyCoupon={handleApplyCoupon} 
+      />
     </div>
   );
 };

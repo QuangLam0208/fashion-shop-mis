@@ -158,8 +158,8 @@ const LandingPage = () => {
               <div className="deals-banner__label">⚡ Flash Sale</div>
               <h2 className="deals-banner__title">Ưu Đãi Đặc Biệt<br />Hôm Nay</h2>
               <p className="deals-banner__sub">Hàng trăm sản phẩm giảm giá sâu — chỉ trong hôm nay!</p>
-              <button className="banner-slide__btn" onClick={() => navigate('/shop?is_sale=true')}>
-                Xem khuyến mãi
+              <button className="banner-slide__btn" onClick={() => navigate('/promotions')}>
+                Lấy mã giảm giá
               </button>
             </div>
             <div style={{ fontSize: 120, opacity: 0.15, userSelect: 'none' }}>🏷️</div>

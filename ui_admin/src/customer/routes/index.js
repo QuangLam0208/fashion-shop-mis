@@ -34,6 +34,9 @@ import OrderDetailPage from '../pages/account/OrderDetailPage';
 // ── 404
 import NotFoundPage from '../pages/NotFoundPage';
 import CustomerReturnListPage from '../pages/account/CustomerReturnListPage';
+import CustomerReturnDetailPage from '../pages/account/CustomerReturnDetailPage';
+import PromotionsPage from '../pages/shop/PromotionsPage';
+import CustomerWalletPage from '../pages/account/CustomerWalletPage';
 
 const CustomerRoutes = () => (
   <Routes>
@@ -52,6 +55,7 @@ const CustomerRoutes = () => (
       <Route path="shop/:id"    element={<ProductDetailPage />} />
       <Route path="category/:id" element={<CategoryPage />} />
       <Route path="wishlist" element={<WishlistPage />} />
+      <Route path="promotions"  element={<PromotionsPage />} />
 
       {/* Protected */}
       <Route element={<CustomerPrivateRoute />}>
@@ -64,6 +68,8 @@ const CustomerRoutes = () => (
         <Route path="account/orders"     element={<CustomerOrder />} />
         <Route path="account/orders/:id" element={<OrderDetailPage />} />
         <Route path="account/returns"    element={<CustomerReturnListPage />} />
+        <Route path="account/returns/:id" element={<CustomerReturnDetailPage />} />
+        <Route path="account/wallet" element={<CustomerWalletPage />} />
       </Route>
     </Route>
 

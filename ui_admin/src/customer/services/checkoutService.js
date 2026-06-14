@@ -21,7 +21,7 @@ export const checkoutService = {
     const res = await axiosInstance.post(
       '/api/coupons/apply', 
       { 
-        code: payload.couponCode // Body: { "code": "string" }
+        couponCode: payload.couponCode // Body: { "code": "string" }
       },
       { 
         params: { currentTotal: payload.orderAmount } // Query param: ?currentTotal=number
