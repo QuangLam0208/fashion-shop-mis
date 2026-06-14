@@ -153,7 +153,8 @@ const CheckoutPage = () => {
       // === CẬP NHẬT PAYLOAD CHUẨN: Dùng addressId thay cho chuỗi text ===
       const payload = {
         cartItemIds: selectedItemIds,
-        addressId: selectedAddressId, 
+        // addressId: selectedAddressId, 
+        shippingAddress: selectedAddressId,
         paymentMethod: paymentMethod,
         couponCode: appliedCoupon ? appliedCoupon.code : null
       };
