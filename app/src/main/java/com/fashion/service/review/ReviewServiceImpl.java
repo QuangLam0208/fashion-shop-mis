@@ -2,10 +2,12 @@ package com.fashion.service.review;
 
 import com.fashion.dto.request.SubmitReviewRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
+import com.fashion.dto.response.ProductReviewListResponseDTO;
 import com.fashion.dto.response.ReviewResponseDTO;
 import com.fashion.model.OrderItem;
 import com.fashion.model.Product;
 import com.fashion.model.Review;
+import com.fashion.model.ReviewImage;
 import com.fashion.model.User;
 import com.fashion.model.enums.OrderStatus;
 import com.fashion.repository.OrderItemRepository;
@@ -90,8 +92,22 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ReviewResponseDTO> getReviewsByProduct(Long productId, Pageable pageable) {
-        return reviewRepository.findByProductId(productId, pageable).map(this::mapToDTO);
+    public ProductReviewListResponseDTO getReviewsByProduct(Long productId, Pageable pageable) {
+        long count = reviewRepository.countByProductId(productId);
+        Double averageRating = 0.0;
+        if (count > 0) {
+            Double calculatedAvg = reviewRepository.getAverageRatingByProductId(productId);
+            if (calculatedAvg != null) {
+                averageRating = Math.round(calculatedAvg * 10.0) / 10.0;
+            }
+        }
+        Page<ReviewResponseDTO> reviews = reviewRepository.findByProductId(productId, pageable).map(this::mapToDTO);
+        
+        return ProductReviewListResponseDTO.builder()
+                .totalReviews(count)
+                .averageRating(averageRating)
+                .reviews(reviews)
+                .build();
     }
 
     @Override
@@ -121,7 +137,8 @@ public class ReviewServiceImpl implements ReviewService {
                 .customerName(review.getUser().getFullName())
                 .rating(review.getRating())
                 .comment(review.getComment())
-                .createdAt(review.getCreatedAt() != null ? DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault()).format(review.getCreatedAt()) : "N/A");
+                .createdAt(review.getCreatedAt() != null ? DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault()).format(review.getCreatedAt()) : "N/A")
+                .imageUrls(review.getImages().stream().map(ReviewImage::getImageUrl).toList());
 
 
         // Bổ sung thông tin đơn hàng (Sử dụng cơ chế Fallback nếu thiếu liên kết trực tiếp)
