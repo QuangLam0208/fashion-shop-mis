@@ -40,7 +40,7 @@ public class ReviewController {
     // XEM ĐÁNH GIÁ CỦA SẢN PHẨM
     @GetMapping("/products/{productId}")
     public ResponseEntity<ProductReviewListResponseDTO> getReviewsByProduct(
-            @PathVariable Long productId,
+            @PathVariable("productId") Long productId,
             Pageable pageable) {
         return ResponseEntity.ok(reviewService.getReviewsByProduct(productId, pageable));
     }

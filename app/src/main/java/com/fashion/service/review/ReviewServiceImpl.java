@@ -4,6 +4,7 @@ import com.fashion.dto.request.SubmitReviewRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.ProductReviewListResponseDTO;
 import com.fashion.dto.response.ReviewResponseDTO;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.OrderItem;
 import com.fashion.model.Product;
 import com.fashion.model.Review;
@@ -93,6 +94,10 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional(readOnly = true)
     public ProductReviewListResponseDTO getReviewsByProduct(Long productId, Pageable pageable) {
+        if (!productRepository.existsById(productId)) {
+            throw new ResourceNotFoundException("Sản phẩm không tồn tại!");
+        }
+
         long count = reviewRepository.countByProductId(productId);
         Double averageRating = 0.0;
         if (count > 0) {
@@ -102,7 +107,7 @@ public class ReviewServiceImpl implements ReviewService {
             }
         }
         Page<ReviewResponseDTO> reviews = reviewRepository.findByProductId(productId, pageable).map(this::mapToDTO);
-        
+
         return ProductReviewListResponseDTO.builder()
                 .totalReviews(count)
                 .averageRating(averageRating)
@@ -137,11 +142,15 @@ public class ReviewServiceImpl implements ReviewService {
                 .customerName(review.getUser().getFullName())
                 .rating(review.getRating())
                 .comment(review.getComment())
-                .createdAt(review.getCreatedAt() != null ? DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault()).format(review.getCreatedAt()) : "N/A")
+                .createdAt(
+                        review.getCreatedAt() != null
+                                ? DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault())
+                                        .format(review.getCreatedAt())
+                                : "N/A")
                 .imageUrls(review.getImages().stream().map(ReviewImage::getImageUrl).toList());
 
-
-        // Bổ sung thông tin đơn hàng (Sử dụng cơ chế Fallback nếu thiếu liên kết trực tiếp)
+        // Bổ sung thông tin đơn hàng (Sử dụng cơ chế Fallback nếu thiếu liên kết trực
+        // tiếp)
         OrderItem orderItem = review.getOrderItem();
         if (orderItem == null) {
             orderItem = orderItemRepository
@@ -154,7 +163,8 @@ public class ReviewServiceImpl implements ReviewService {
         if (orderItem != null) {
             builder.price(orderItem.getPrice());
             if (orderItem.getOrder() != null && orderItem.getOrder().getOrderDate() != null) {
-                builder.orderDate(new SimpleDateFormat("dd/MM/yyyy").format(orderItem.getOrder().getOrderDate()));
+                builder.orderDate(DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault())
+                        .format(orderItem.getOrder().getOrderDate()));
             }
         }
 
@@ -162,8 +172,10 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private String formatImageUrl(String url) {
-        if (url == null) return "/images/placeholder.png";
-        if (url.startsWith("http") || url.startsWith("/")) return url;
+        if (url == null)
+            return "/images/placeholder.png";
+        if (url.startsWith("http") || url.startsWith("/"))
+            return url;
         return "/" + url;
     }
 }
