@@ -1,7 +1,6 @@
 package com.fashion.controller.api;
 
 import com.fashion.dto.request.SubmitReviewRequestDTO;
-import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.ReviewResponseDTO;
 import com.fashion.service.review.ReviewService;
 import com.fashion.util.SecurityUtils;
@@ -12,6 +11,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 
 import com.fashion.dto.response.ProductReviewListResponseDTO;
 
@@ -24,7 +25,7 @@ public class ReviewController {
 
     // THÊM ĐÁNH GIÁ
     @PostMapping
-    public ResponseEntity<MessageResponseDTO> submitReview(
+    public ResponseEntity<ReviewResponseDTO> submitReview(
             @Valid @RequestBody SubmitReviewRequestDTO dto) {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -32,7 +33,8 @@ public class ReviewController {
     }
 
     @GetMapping("/my")
-    public ResponseEntity<Page<ReviewResponseDTO>> getMyReviews(Pageable pageable) {
+    public ResponseEntity<Page<ReviewResponseDTO>> getMyReviews(
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(reviewService.getReviewsByUser(userId, pageable));
     }
