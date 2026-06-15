@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.fashion.dto.response.ProductReviewListResponseDTO;
+
 @RestController
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
@@ -37,8 +39,8 @@ public class ReviewController {
 
     // XEM ĐÁNH GIÁ CỦA SẢN PHẨM
     @GetMapping("/products/{productId}")
-    public ResponseEntity<Page<ReviewResponseDTO>> getReviewsByProduct(
-            @PathVariable Long productId,
+    public ResponseEntity<ProductReviewListResponseDTO> getReviewsByProduct(
+            @PathVariable("productId") Long productId,
             Pageable pageable) {
         return ResponseEntity.ok(reviewService.getReviewsByProduct(productId, pageable));
     }
