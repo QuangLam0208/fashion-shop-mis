@@ -4,6 +4,7 @@ import com.fashion.dto.request.UpdateCustomerStatusRequestDTO;
 import com.fashion.dto.response.CustomerDetailResponseDTO;
 import com.fashion.dto.response.CustomerSummaryResponseDTO;
 import com.fashion.dto.response.MessageResponseDTO;
+import com.fashion.dto.response.OrderDetailResponseDTO;
 import com.fashion.service.user.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ public class AdminUserController {
     // DANH SÁCH KHÁCH HÀNG
     @GetMapping
     public ResponseEntity<Page<CustomerSummaryResponseDTO>> getAllCustomers(
-            @RequestParam(required = false) String keyword,
+            @RequestParam(name = "keyword", required = false) String keyword,
             Pageable pageable
     ) {
 
@@ -36,7 +37,7 @@ public class AdminUserController {
     // XEM CHI TIẾT KHÁCH HÀNG
     @GetMapping("/{customerId}")
     public ResponseEntity<CustomerDetailResponseDTO> getCustomerDetail(
-            @PathVariable Long customerId
+            @PathVariable("customerId") Long customerId
     ) {
 
         CustomerDetailResponseDTO response = userService.getCustomerDetail(customerId);
@@ -44,10 +45,20 @@ public class AdminUserController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    // XEM CHI TIẾT 1 ĐƠN HÀNG CỤ THỂ CỦA KHÁCH HÀNG (Deep Order Auditing)
+    @GetMapping("/{customerId}/orders/{orderId}")
+    public ResponseEntity<OrderDetailResponseDTO> getCustomerOrderDetail(
+            @PathVariable("customerId") Long customerId,
+            @PathVariable("orderId") Long orderId
+    ) {
+        OrderDetailResponseDTO response = userService.getCustomerOrderDetail(customerId, orderId);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
     // CẬP NHẬT TRẠNG THÁI KHÁCH HÀNG
     @PatchMapping("/{customerId}/status")
     public ResponseEntity<MessageResponseDTO> updateCustomerStatus(
-            @PathVariable Long customerId,
+            @PathVariable("customerId") Long customerId,
             @Valid @RequestBody UpdateCustomerStatusRequestDTO dto
     ) {
 

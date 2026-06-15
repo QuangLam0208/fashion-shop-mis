@@ -31,15 +31,15 @@ public class RevenueServiceImpl implements RevenueService {
         cal.set(Calendar.MILLISECOND, 999);
         Date adjustedEndDate = cal.getTime();
 
-        Double onlineRevenue = orderRepository.calculateTotalRevenue(startDate, adjustedEndDate, OrderType.ONLINE);
+        Double onlineRevenue = orderRepository.calculateTotalRevenue(startDate.toInstant(), adjustedEndDate.toInstant(), OrderType.ONLINE);
         if (onlineRevenue == null) onlineRevenue = 0.0;
 
-        Double offlineRevenue = orderRepository.calculateTotalRevenue(startDate, adjustedEndDate, OrderType.OFFLINE);
+        Double offlineRevenue = orderRepository.calculateTotalRevenue(startDate.toInstant(), adjustedEndDate.toInstant(), OrderType.OFFLINE);
         if (offlineRevenue == null) offlineRevenue = 0.0;
 
-        int totalOrders = orderRepository.countOrders(startDate, adjustedEndDate);
+        int totalOrders = orderRepository.countOrders(startDate.toInstant(), adjustedEndDate.toInstant());
 
-        List<Order> orderList = orderRepository.findActiveOrdersInPeriod(startDate, adjustedEndDate);
+        List<Order> orderList = orderRepository.findActiveOrdersInPeriod(startDate.toInstant(), adjustedEndDate.toInstant());
 
         return combineToDetailedRevenueReport(onlineRevenue, offlineRevenue, totalOrders, orderList);
     }

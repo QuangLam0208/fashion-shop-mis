@@ -1,5 +1,6 @@
 package com.fashion.dto.response;
 
+import com.fashion.model.enums.OrderStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,4 +14,5 @@ public class OrderItemPreviewDTO {
     private String productName;
     private String productImage;
     private Long quantity;
+    private OrderStatus orderItemStatus;
 }

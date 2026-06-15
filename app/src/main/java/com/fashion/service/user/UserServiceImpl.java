@@ -4,17 +4,18 @@ import com.fashion.dto.request.ChangePasswordRequestDTO;
 import com.fashion.dto.request.UpdateCustomerStatusRequestDTO;
 import com.fashion.dto.request.UpdateProfileRequestDTO;
 import com.fashion.dto.response.*;
-
 import com.fashion.exception.BadRequestException;
 import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Address;
-import com.fashion.model.OrderItem;
 import com.fashion.model.User;
 import com.fashion.model.enums.Role;
 import com.fashion.model.enums.UserStatus;
+import com.fashion.model.Token;
+import com.fashion.repository.TokenRepository;
 import com.fashion.repository.UserRepository;
 import com.fashion.service.email_log.EmailService;
-import com.fashion.util.SecurityUtils; // Nhúng thẳng Utils vào Service
+import com.fashion.service.order.OrderService;
+import com.fashion.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,9 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -37,6 +36,8 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final OrderService orderService;
+    private final TokenRepository tokenRepository;
 
     @Override
     public ProfileResponseDTO getProfile() {
@@ -211,11 +212,23 @@ public class UserServiceImpl implements UserService {
         }
 
         List<OrderSummaryResponseDTO> orderHistory = user.getOrders().stream().map(o -> {
-            Map<String, Integer> statusSummary = new HashMap<>();
-            for (OrderItem item : o.getOrderItems()) {
-                String statusStr = item.getStatus().name();
-                statusSummary.put(statusStr, statusSummary.getOrDefault(statusStr, 0) + 1);
-            }
+            // Map danh sách OrderItem sang OrderItemPreviewDTO
+            List<OrderItemPreviewDTO> itemPreviews = o.getOrderItems().stream().map(item -> {
+                String productName = item.getProductVariant().getProduct().getName()
+                        + " - " + item.getProductVariant().getColor()
+                        + " - " + item.getProductVariant().getSize();
+
+                String productImage = item.getProductVariant().getProduct().getImages().isEmpty()
+                        ? ""
+                        : item.getProductVariant().getProduct().getImages().get(0).getUrl();
+
+                return OrderItemPreviewDTO.builder()
+                        .productName(productName)
+                        .productImage(productImage)
+                        .quantity(item.getQuantity())
+                        .orderItemStatus(item.getStatus())
+                        .build();
+            }).collect(Collectors.toList());
 
             return OrderSummaryResponseDTO.builder()
                     .orderId(o.getId())
@@ -223,7 +236,7 @@ public class UserServiceImpl implements UserService {
                     .totalAmount(o.getTotalAmount())
                     .paymentMethod(o.getPaymentMethod())
                     .itemCount(o.getOrderItems().size())
-                    .statusSummary(statusSummary)
+                    .items(itemPreviews)
                     .build();
         }).collect(Collectors.toList());
 
@@ -245,12 +258,27 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public OrderDetailResponseDTO getCustomerOrderDetail(Long customerId, Long orderId) {
+        return orderService.getMyOrderDetail(customerId, orderId);
+    }
+
+    @Override
     @Transactional
     public MessageResponseDTO updateCustomerStatus(Long customerId, UpdateCustomerStatusRequestDTO dto) {
+        Long currentAdminId = SecurityUtils.getAuthenticatedUserId();
+
+        // Bảo vệ: Không cho phép Admin tự khóa chính mình
+        if (currentAdminId.equals(customerId)) {
+            throw new BadRequestException("Nghiêm cấm hành vi tự khóa tài khoản chính mình!");
+        }
+
         User user = findUserById(customerId);
-        if (user.getRole() != Role.CUSTOMER) {
+
+        // Bảo vệ: Không cho phép khóa Admin khác thông qua API này
+        if (user.getRole() == Role.ADMIN) {
             throw new BadRequestException("Chỉ có thể cập nhật trạng thái của khách hàng!");
         }
+
         if (dto.getStatus() == null) {
             throw new BadRequestException("Trạng thái không hợp lệ!");
         }
@@ -258,9 +286,28 @@ public class UserServiceImpl implements UserService {
         user.setStatus(dto.getStatus());
         userRepository.save(user);
 
+        // Instant Authentication Revocation: Thu hồi token nếu tài khoản bị khóa
+        if (dto.getStatus() == UserStatus.BLOCKED) {
+            revokeAllUserTokens(user.getId());
+        }
+
         return MessageResponseDTO.builder()
                 .message("Cập nhật trạng thái khách hàng thành công!")
                 .build();
+    }
+
+    private void revokeAllUserTokens(Long userId) {
+        List<Token> validTokens = tokenRepository.findAllValidTokensByUser(userId);
+        if (validTokens.isEmpty()) {
+            return;
+        }
+
+        validTokens.forEach(token -> {
+            token.setExpired(true);
+            token.setRevoked(true);
+        });
+
+        tokenRepository.saveAll(validTokens);
     }
 
     private User findUserById(Long userId) {

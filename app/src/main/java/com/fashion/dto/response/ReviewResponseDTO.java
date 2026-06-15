@@ -1,5 +1,7 @@
 package com.fashion.dto.response;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,4 +23,5 @@ public class ReviewResponseDTO {
     private Double price;
     private String orderDate;
     private String createdAt;
+    private List<String> imageUrls;
 }

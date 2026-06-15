@@ -3,10 +3,7 @@ package com.fashion.service.user;
 import com.fashion.dto.request.ChangePasswordRequestDTO;
 import com.fashion.dto.request.UpdateCustomerStatusRequestDTO;
 import com.fashion.dto.request.UpdateProfileRequestDTO;
-import com.fashion.dto.response.CustomerDetailResponseDTO;
-import com.fashion.dto.response.CustomerSummaryResponseDTO;
-import com.fashion.dto.response.MessageResponseDTO;
-import com.fashion.dto.response.ProfileResponseDTO;
+import com.fashion.dto.response.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -24,6 +21,8 @@ public interface UserService {
     Page<CustomerSummaryResponseDTO> getAllCustomers(String keyword, Pageable pageable);
 
     CustomerDetailResponseDTO getCustomerDetail(Long customerId);
+
+    OrderDetailResponseDTO getCustomerOrderDetail(Long customerId, Long orderId);
 
     MessageResponseDTO updateCustomerStatus(Long customerId, UpdateCustomerStatusRequestDTO dto);
 }
