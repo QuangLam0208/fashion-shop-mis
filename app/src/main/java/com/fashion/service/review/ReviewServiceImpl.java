@@ -4,6 +4,7 @@ import com.fashion.dto.request.SubmitReviewRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.ProductReviewListResponseDTO;
 import com.fashion.dto.response.ReviewResponseDTO;
+import com.fashion.exception.BadRequestException;
 import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.OrderItem;
 import com.fashion.model.Product;
@@ -37,21 +38,40 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional
-    public MessageResponseDTO submitReview(Long userId, SubmitReviewRequestDTO dto) {
+    public ReviewResponseDTO submitReview(Long userId, SubmitReviewRequestDTO dto) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại!"));
 
         Product product = productRepository.findById(dto.getProductId())
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại!"));
 
-        // Kiểm tra khách hàng đã mua sản phẩm và OrderItem đã ở trạng thái hoàn tất
-        boolean hasPurchased = orderItemRepository.existsByOrderUserIdAndStatusAndProductVariantProductId(
-                userId, OrderStatus.DELIVERED, dto.getProductId()) ||
-                orderItemRepository.existsByOrderUserIdAndStatusAndProductVariantProductId(
-                        userId, OrderStatus.COMPLETED, dto.getProductId());
+        OrderItem targetOrderItem;
+        if (dto.getOrderItemId() != null) {
+            targetOrderItem = orderItemRepository.findById(dto.getOrderItemId())
+                    .orElseThrow(() -> new BadRequestException("OrderItem không tồn tại!"));
 
-        if (!hasPurchased) {
-            throw new RuntimeException("Bạn chỉ có thể đánh giá sản phẩm đã mua và đã giao thành công!");
+            if (!targetOrderItem.getProductVariant().getProduct().getId().equals(dto.getProductId())) {
+                throw new BadRequestException("OrderItem không khớp với sản phẩm!");
+            }
+        } else {
+            targetOrderItem = orderItemRepository
+                    .findFirstByOrderUserIdAndProductVariantProductIdAndIsReviewedFalseOrderByOrderOrderDateDesc(
+                            userId, dto.getProductId())
+                    .orElseThrow(() -> new BadRequestException(
+                            "Không tìm thấy sản phẩm chưa đánh giá hợp lệ!"));
+        }
+
+        // AC-US40-02: Kiểm tra đơn hàng thuộc user đăng nhập và trạng thái DELIVERED
+        if (!targetOrderItem.getOrder().getUser().getId().equals(userId)) {
+            throw new BadRequestException("Sản phẩm này không thuộc đơn hàng của bạn!");
+        }
+        if (targetOrderItem.getStatus() != OrderStatus.DELIVERED) {
+            throw new BadRequestException("Bạn chỉ có thể đánh giá sản phẩm đã giao thành công!");
+        }
+
+        // AC-US40-03: Chặn đánh giá trùng lặp
+        if (targetOrderItem.isReviewed()) {
+            throw new BadRequestException("Mặt hàng này trong đơn đã được đánh giá!");
         }
 
         // Lưu đánh giá
@@ -61,34 +81,24 @@ public class ReviewServiceImpl implements ReviewService {
                 .rating(dto.getRating())
                 .comment(dto.getComment())
                 .createdAt(Instant.now())
+                .orderItem(targetOrderItem)
                 .build();
 
-        // Thêm hình ảnh
-
-        // Nếu có orderItemId, đánh dấu OrderItem là đã đánh giá
-        if (dto.getOrderItemId() != null) {
-            orderItemRepository.findById(dto.getOrderItemId()).ifPresent(item -> {
-                item.setReviewed(true);
-                orderItemRepository.save(item);
-                review.setOrderItem(item);
-            });
-        } else {
-            // Fallback: Tìm OrderItem chưa đánh giá gần nhất của user cho sản phẩm này
-            orderItemRepository
-                    .findFirstByOrderUserIdAndProductVariantProductIdAndIsReviewedFalseOrderByOrderOrderDateDesc(
-                            userId, dto.getProductId())
-                    .ifPresent(item -> {
-                        item.setReviewed(true);
-                        orderItemRepository.save(item);
-                        review.setOrderItem(item);
-                    });
+        // AC-US40-01: Thêm hình ảnh
+        if (dto.getImageUrls() != null && !dto.getImageUrls().isEmpty()) {
+            java.util.List<ReviewImage> images = dto.getImageUrls().stream()
+                    .map(url -> ReviewImage.builder().imageUrl(url).review(review).build())
+                    .toList();
+            review.setImages(new java.util.ArrayList<>(images));
         }
+
+        // Đánh dấu OrderItem là đã đánh giá
+        targetOrderItem.setReviewed(true);
+        orderItemRepository.save(targetOrderItem);
 
         reviewRepository.save(review);
 
-        return MessageResponseDTO.builder()
-                .message("Gửi đánh giá thành công! Cảm ơn bạn đã đánh giá sản phẩm.")
-                .build();
+        return mapToDTO(review);
     }
 
     @Override
