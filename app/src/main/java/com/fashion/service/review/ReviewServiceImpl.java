@@ -61,7 +61,7 @@ public class ReviewServiceImpl implements ReviewService {
                             "Không tìm thấy sản phẩm chưa đánh giá hợp lệ!"));
         }
 
-        // AC-US40-02: Kiểm tra đơn hàng thuộc user đăng nhập và trạng thái DELIVERED
+        // Kiểm tra đơn hàng thuộc user đăng nhập và trạng thái DELIVERED
         if (!targetOrderItem.getOrder().getUser().getId().equals(userId)) {
             throw new BadRequestException("Sản phẩm này không thuộc đơn hàng của bạn!");
         }
@@ -69,7 +69,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BadRequestException("Bạn chỉ có thể đánh giá sản phẩm đã giao thành công!");
         }
 
-        // AC-US40-03: Chặn đánh giá trùng lặp
+        // Chặn đánh giá trùng lặp
         if (targetOrderItem.isReviewed()) {
             throw new BadRequestException("Mặt hàng này trong đơn đã được đánh giá!");
         }
@@ -84,7 +84,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .orderItem(targetOrderItem)
                 .build();
 
-        // AC-US40-01: Thêm hình ảnh
+        // Thêm hình ảnh
         if (dto.getImageUrls() != null && !dto.getImageUrls().isEmpty()) {
             java.util.List<ReviewImage> images = dto.getImageUrls().stream()
                     .map(url -> ReviewImage.builder().imageUrl(url).review(review).build())
