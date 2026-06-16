@@ -173,7 +173,7 @@ public class OrderServiceImpl implements OrderService {
 
         // 9. Gửi thông báo
         notificationService.createNotification(
-                user,
+                user.getId(),
                 "Đặt hàng thành công",
                 "Đơn hàng #" + order.getId() + " của bạn đã được khởi tạo thành công.",
                 "SUCCESS",
@@ -500,7 +500,7 @@ public class OrderServiceImpl implements OrderService {
 
         // Gửi thông báo
         notificationService.createNotification(
-                order.getUser(),
+                order.getUser().getId(),
                 "Đơn hàng đã được hủy",
                 "Đơn hàng #" + order.getId() + " đã được hủy thành công. Lý do: " + dto.getCancellationReason(),
                 "WARNING",
