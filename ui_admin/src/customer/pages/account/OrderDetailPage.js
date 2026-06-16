@@ -8,6 +8,7 @@ import { customerReturnService } from '../../services/customerReturnService';
 import { uploadService } from '../../services/uploadService';
 import { formatCurrency, formatDateTime } from '../../../shared/utils/formatters';
 import { STATUS_COLORS, STATUS_MAP } from '../../../shared/constants';
+import ReviewModal from '../../components/ReviewModal';
 
 const { Title, Text } = Typography;
 
@@ -30,6 +31,25 @@ const OrderDetailPage = () => {
   const [selectedReturnItems, setSelectedReturnItems] = useState([]);
   const [fileList, setFileList] = useState([]);
   const [submittingReturn, setSubmittingReturn] = useState(false);
+
+  // Review Modal States
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewingItem, setReviewingItem] = useState(null);
+
+  const openReviewModal = (item) => {
+    setReviewingItem(item);
+    setReviewModalOpen(true);
+  };
+
+  // AC-FE-US40-02: Live state update
+  const handleReviewSuccess = (orderItemId) => {
+    setOrder(prev => {
+      const updatedItems = prev.items.map(item => 
+        item.orderItemId === orderItemId ? { ...item, isReviewed: true } : item
+      );
+      return { ...prev, items: updatedItems };
+    });
+  };
 
   useEffect(() => {
     fetchOrderDetail();
@@ -200,6 +220,24 @@ const OrderDetailPage = () => {
         }
         return <Tag color={STATUS_COLORS[record.status] || 'blue'}>{STATUS_MAP[record.status] || record.status || 'N/A'}</Tag>;
       } 
+    },
+    { 
+      title: 'Đánh giá', 
+      key: 'review', 
+      align: 'center', 
+      render: (_, record) => {
+        // Chỉ hiện nút khi Đơn hàng (hoặc Item) Đã giao hoặc Hoàn thành, và chưa bị trả lại
+        const isDeliveredOrCompleted = order.status === 'DELIVERED' || order.status === 'COMPLETED' || record.status === 'DELIVERED' || record.status === 'COMPLETED';
+        const canReview = isDeliveredOrCompleted && !record.isReviewed && !record.returnRequestId && record.status !== 'RETURNED';
+        
+        if (record.isReviewed) {
+          return <Text type="secondary" style={{ fontStyle: 'italic' }}>Đã đánh giá</Text>;
+        }
+        if (canReview) {
+          return <Button type="primary" size="small" ghost onClick={() => openReviewModal(record)}>Viết đánh giá</Button>;
+        }
+        return null;
+      } 
     }
   ];
 
@@ -361,6 +399,12 @@ const OrderDetailPage = () => {
           </Upload>
         </div>
       </Modal>
+      <ReviewModal
+        open={reviewModalOpen} 
+        onClose={() => setReviewModalOpen(false)} 
+        onSuccess={handleReviewSuccess} 
+        orderItem={reviewingItem} 
+      />
     </Card>
   );
 };
