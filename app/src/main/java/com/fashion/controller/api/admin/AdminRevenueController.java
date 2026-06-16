@@ -16,14 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Date;
 
 @RestController
-@RequestMapping("/api/admin/reports")
+@RequestMapping("/api/admin/revenue")
 @RequiredArgsConstructor
 public class AdminRevenueController {
 
     private final RevenueService revenueService;
 
     // XEM BÁO CÁO DOANH THU
-    @GetMapping("/revenue")
+    @GetMapping("/reports")
     public ResponseEntity<RevenueReportDTO> getRevenueReport(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate
@@ -36,7 +36,7 @@ public class AdminRevenueController {
     }
 
     // XUẤT FILE BÁO CÁO DOANH THU
-    @GetMapping("/revenue/export")
+    @GetMapping("/export/reports")
     public ResponseEntity<byte[]> exportRevenueReport(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate,
