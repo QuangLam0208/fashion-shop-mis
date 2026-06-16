@@ -577,6 +577,7 @@ class OrderServiceImplTest {
                 .quantity(2L)
                 .price(200000.0)
                 .orderHistories(new ArrayList<>())
+                .isReviewed(true)
                 .build();
 
         Order order = Order.builder()
@@ -600,6 +601,7 @@ class OrderServiceImplTest {
         assertEquals(1, result.getItems().size());
         assertEquals("Áo Thun Nam", result.getItems().get(0).getProductName());
         assertEquals(200000.0, result.getItems().get(0).getPrice());
+        assertTrue(result.getItems().get(0).isReviewed());
     }
 
 
