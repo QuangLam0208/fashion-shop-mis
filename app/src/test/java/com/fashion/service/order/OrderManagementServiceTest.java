@@ -36,8 +36,12 @@ public class OrderManagementServiceTest {
 
     @BeforeEach
     void setUp() {
+        com.fashion.model.User user = new com.fashion.model.User();
+        user.setId(2L);
+
         Order order = new Order();
         order.setId(1L);
+        order.setUser(user);
 
         sampleItem = new OrderItem();
         sampleItem.setId(101L);

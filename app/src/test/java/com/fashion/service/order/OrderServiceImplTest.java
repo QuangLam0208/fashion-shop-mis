@@ -144,7 +144,7 @@ class OrderServiceImplTest {
 
         // Verify notification sent
         verify(notificationService, times(1)).createNotification(
-                eq(mockUser),
+                eq(mockUser.getId()),
                 eq("Đặt hàng thành công"),
                 anyString(),
                 eq("SUCCESS"),
@@ -502,7 +502,7 @@ class OrderServiceImplTest {
         verify(orderRepository).save(order);
         verify(orderItemRepository).save(orderItem);
         verify(orderHistoryRepository).save(any(OrderHistory.class));
-        verify(notificationService).createNotification(eq(mockUser), anyString(), anyString(), eq("WARNING"), eq(10L));
+        verify(notificationService).createNotification(eq(mockUser.getId()), anyString(), anyString(), eq("WARNING"), eq(10L));
     }
 
     @Test
