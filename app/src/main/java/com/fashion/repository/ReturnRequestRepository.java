@@ -18,9 +18,15 @@ public interface ReturnRequestRepository extends JpaRepository<ReturnRequest, Lo
     // trước!
     Page<ReturnRequest> findByStatusOrderByRequestDateAsc(ReturnStatus status, Pageable pageable);
 
-    @Query("SELECT CASE WHEN COUNT(i) > 0 THEN true ELSE false END FROM OrderItem i " +
-            "WHERE i.id IN :itemIds AND i.returnRequest IS NOT NULL")
-    boolean existsByOrderItemIdIn(@Param("itemIds") List<Long> itemIds);
+    @Query("""
+        SELECT CASE WHEN COUNT(rr) > 0 THEN true ELSE false END
+        FROM ReturnRequest rr
+        JOIN rr.returnItems ri
+        WHERE ri.id IN :itemIds AND rr.status IN :statuses
+    """)
+    boolean existsByItemIdsAndStatuses(
+            @Param("itemIds") List<Long> itemIds,
+            @Param("statuses") List<ReturnStatus> statuses);
 
     // Lấy tất cả yêu cầu hoàn trả của 1 khách hàng
     List<ReturnRequest> findByUserIdOrderByRequestDateDesc(Long userId);

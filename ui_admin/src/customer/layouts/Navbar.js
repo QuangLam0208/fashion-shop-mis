@@ -1,7 +1,7 @@
 // src/customer/layouts/Navbar.js
 import React, { useState } from 'react';
 import { Badge, Button, Drawer, Avatar, Dropdown } from 'antd';
-import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, OrderedListOutlined } from '@ant-design/icons';
+import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, OrderedListOutlined, HeartOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import useCart           from '../hooks/useCart';
 import useCustomerAuth   from '../hooks/useCustomerAuth';
@@ -13,18 +13,51 @@ const Navbar = () => {
   const [cartOpen, setCartOpen]      = useState(false);
   const navigate                     = useNavigate();
 
-  const userMenu = {
-    items: [
-      { key: 'orders', icon: <OrderedListOutlined />, label: 'Đơn hàng của tôi' },
-      { key: 'profile', label: 'Hồ sơ cá nhân' },
-      { type: 'divider' },
-      { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
-    ],
-    onClick: ({ key }) => {
-      if (key === 'logout') { logout(); navigate('/'); }
-      else navigate(`/account/${key}`);
-    },
+  const handleLogout = () => {
+    logout();
+    navigate('/'); // Đăng xuất xong về trang chủ
   };
+
+  const userMenu = [
+    {
+      key: 'profile',
+      label: 'Tài khoản của tôi',
+      icon: <UserOutlined />,
+      onClick: () => navigate('/account/profile')
+    },
+    {
+      key: 'orders',
+      label: 'Đơn mua',
+      icon: <ShoppingCartOutlined />,
+      onClick: () => navigate('/account/orders')
+    },
+    {
+      key: 'returns',
+      label: 'Yêu cầu trả hàng',
+      icon: <HistoryOutlined />,
+      onClick: () => navigate('/account/returns')
+    },
+    {
+      key: 'wallet',
+      label: 'Ví Voucher',
+      icon: <WalletOutlined />,
+      onClick: () => navigate('/account/wallet')
+    },
+    {
+      key: 'wishlist',
+      label: 'Yêu thích',
+      icon: <HeartOutlined />,
+      onClick: () => navigate('/wishlist')
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      label: 'Đăng xuất',
+      icon: <LogoutOutlined />,
+      danger: true, // Chữ màu đỏ
+      onClick: handleLogout
+    }
+  ];
 
   return (
     <>
@@ -35,16 +68,18 @@ const Navbar = () => {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         {/* Logo */}
-        <Link to="/" style={{ fontFamily: 'serif', fontSize: 22, fontWeight: 700, letterSpacing: 3, color: '#1a1a1a', textDecoration: 'none' }}>
-          ✦ FASHION
-        </Link>
+        
 
         {/* Nav links */}
         <nav style={{ display: 'flex', gap: 28 }}>
-          {[['/', 'Trang chủ'], ['/shop', 'Sản phẩm'], ['/shop?sale=true', 'Sale']].map(([href, label]) => (
+          {[['/', 'Danh mục'], ['/shop', 'Sản phẩm'], ['/shop?sale=true', 'Sale']].map(([href, label]) => (
             <Link key={href} to={href} style={{ color: '#333', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>{label}</Link>
           ))}
         </nav>
+
+        <Link to="/" style={{ fontFamily: 'serif', fontSize: 22, fontWeight: 700, letterSpacing: 3, color: '#1a1a1a', textDecoration: 'none' }}>
+          ✦ FASHION ✦
+        </Link>
 
         {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -53,12 +88,24 @@ const Navbar = () => {
           </Badge>
 
           {isAuthenticated ? (
-            <Dropdown menu={userMenu} placement="bottomRight">
-              <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer', background: '#c9a96e' }} />
-            </Dropdown>
-          ) : (
-            <Button type="primary" size="small" onClick={() => navigate('/login')}>Đăng nhập</Button>
-          )}
+          <Dropdown menu={{ items: userMenu }} placement="bottomRight" arrow>
+            <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+              <Avatar 
+                style={{ backgroundColor: '#1a1a1a' }} 
+                icon={<UserOutlined />} 
+                src={currentUser?.avatar} // Nếu user có link avatar thì sẽ tự hiện
+              />
+              {/* Tên khách hàng (tuỳ chọn, có thể ẩn trên mobile cho gọn) */}
+              <span className="navbar-username" style={{ fontWeight: 500 }}>
+                {currentUser?.full_name || 'Khách hàng'}
+              </span>
+            </div>
+          </Dropdown>
+        ) : (
+          <button className="login-btn" onClick={() => navigate('/login')}>
+            Đăng nhập
+          </button>
+        )}
         </div>
       </header>
 

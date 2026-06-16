@@ -5,6 +5,8 @@ import com.fashion.dto.request.UpdateCartItemRequestDTO;
 import com.fashion.dto.response.CartItemResponseDTO;
 import com.fashion.dto.response.CartResponseDTO;
 import com.fashion.dto.response.MessageResponseDTO;
+import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.*;
 import com.fashion.repository.CartItemRepository;
 import com.fashion.repository.ProductVariantRepository;
@@ -46,21 +48,14 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public CartItemResponseDTO addToCart(Long userId, AddToCartRequestDTO dto) {
-        // Kiểm tra đầy đủ thuộc tính sản phẩm (variantId đã bao gồm size + color)
-        if (dto.getVariantId() == null) {
-            throw new RuntimeException("Vui lòng chọn đầy đủ thông tin sản phẩm (kích thước, màu sắc)!");
-        }
-
-        if (dto.getQuantity() <= 0) {
-            throw new RuntimeException("Số lượng phải lớn hơn 0!");
-        }
+        // Đã lược bỏ các bước check dữ liệu thủ công do Controller đã xử lý bằng @Valid
 
         ProductVariant variant = productVariantRepository.findById(dto.getVariantId())
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại!"));
 
         // Kiểm tra tồn kho
         if (variant.getStockQuantity() < dto.getQuantity()) {
-            throw new RuntimeException("Sản phẩm không đủ số lượng trong kho!");
+            throw new BadRequestException("Sản phẩm không đủ số lượng trong kho!");
         }
 
         // Kiểm tra sản phẩm đã tồn tại trong giỏ hàng chưa
@@ -73,14 +68,14 @@ public class CartServiceImpl implements CartService {
             int newQuantity = cartItem.getQuantity() + dto.getQuantity();
 
             if (variant.getStockQuantity() < newQuantity) {
-                throw new RuntimeException("Tổng số lượng vượt quá tồn kho! Trong kho còn " + variant.getStockQuantity() + " sản phẩm.");
+                throw new BadRequestException("Tổng số lượng vượt quá tồn kho! Trong kho còn " + variant.getStockQuantity() + " sản phẩm.");
             }
 
             cartItem.setQuantity(newQuantity);
         } else {
             // Sản phẩm chưa có → thêm mới
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại!"));
 
             cartItem = CartItem.builder()
                     .user(user)
@@ -98,21 +93,15 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public CartItemResponseDTO updateCartItem(Long userId, UpdateCartItemRequestDTO dto) {
         CartItem cartItem = cartItemRepository.findById(dto.getCartItemId())
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không có trong giỏ hàng!"));
 
         if (!cartItem.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Bạn không có quyền thay đổi giỏ hàng này!");
-        }
-
-        if (dto.getQuantity() <= 0) {
-            // Nếu số lượng = 0 hoặc âm → xóa khỏi giỏ
-            cartItemRepository.delete(cartItem);
-            return null;
+            throw new BadRequestException("Bạn không có quyền thay đổi giỏ hàng này!");
         }
 
         // Kiểm tra tồn kho
         if (cartItem.getProductVariant().getStockQuantity() < dto.getQuantity()) {
-            throw new RuntimeException("Số lượng vượt quá tồn kho!");
+            throw new BadRequestException("Số lượng vượt quá tồn kho!");
         }
 
         cartItem.setQuantity(dto.getQuantity());
@@ -125,10 +114,10 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public MessageResponseDTO removeCartItem(Long userId, Long cartItemId) {
         CartItem cartItem = cartItemRepository.findById(cartItemId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không có trong giỏ hàng!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không có trong giỏ hàng!"));
 
         if (!cartItem.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Bạn không có quyền xóa sản phẩm này!");
+            throw new BadRequestException("Bạn không có quyền xóa sản phẩm này!");
         }
 
         cartItemRepository.delete(cartItem);

@@ -26,10 +26,8 @@ export const shopProductService = {
   },
 
   /** Sản phẩm liên quan (cùng danh mục) */
-  getRelated: async (productId, categoryId) => {
-    const res = await axiosInstance.get(
-      `${API_ENDPOINTS.SHOP.PRODUCTS}/${productId}/related`
-    );
+  getRelated: async (id, limit = 4) => {
+    const res = await axiosInstance.get(`/api/products/${id}/related?limit=${limit}`);
     return res.data;
-  },
+  },  
 };

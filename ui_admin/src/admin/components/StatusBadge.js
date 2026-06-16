@@ -4,16 +4,16 @@ import { Tag } from 'antd';
 // Từ điển ánh xạ trạng thái sang màu sắc và nhãn tiếng Việt
 const STATUS_CONFIG = {
   // Trạng thái đơn hàng / chung
-  PENDING: { color: 'warning', label: 'Chờ xử lý' },
-  PROCESSING: { color: 'processing', label: 'Đang xử lý' },
-  SHIPPING: { color: 'cyan', label: 'Đang giao' },
-  DELIVERED: { color: 'success', label: 'Đã giao' },
-  CANCELLED: { color: 'error', label: 'Đã huỷ' },
-  COMPLETED: { color: 'success', label: 'Hoàn thành' },
-  
-  // Trạng thái tài khoản / sản phẩm
-  ACTIVE: { color: 'success', label: 'Hoạt động' },
-  INACTIVE: { color: 'default', label: 'Bị khoá / Ẩn' },
+  PENDING_CONFIRMATION: { label: 'Chờ xác nhận', color: 'orange' },
+  PENDING_PAYMENT: { label: 'Chờ thanh toán', color: 'gold' },
+  PAID: { label: 'Đã thanh toán', color: 'lime' },
+  PROCESSING: { label: 'Đang xử lý', color: 'blue' },
+  SHIPPING: { label: 'Đang giao hàng', color: 'cyan' },
+  DELIVERED: { label: 'Đã giao hàng', color: 'geekblue' },
+  COMPLETED: { label: 'Hoàn thành', color: 'green' },
+  CANCELLED: { label: 'Đã hủy', color: 'red' },
+  PAYMENT_FAILED: { label: 'Thanh toán thất bại', color: 'volcano' },
+  PAYMENT_EXPIRED: { label: 'Hết hạn thanh toán', color: 'magenta' }
 };
 
 const StatusBadge = ({ status, customLabel }) => {

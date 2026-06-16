@@ -34,7 +34,7 @@ public class OrderController {
     }
 
     // LẤY DANH SÁCH ĐƠN HÀNG (DẠNG GỘP ORDER) - DÙNG CHO TAB ALL
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<OrderSummaryResponseDTO>> getMyOrders(
             @RequestParam(required = false) List<OrderStatus> statuses,
             Pageable pageable) {
@@ -56,11 +56,14 @@ public class OrderController {
 
     // XEM CHI TIẾT ĐƠN HÀNG
     @GetMapping("/{orderId}")
-    public ResponseEntity<OrderDetailResponseDTO> getMyOrderDetail(
-            @PathVariable Long orderId) {
-        Long userId = SecurityUtils.getAuthenticatedUserId();
-        OrderDetailResponseDTO response = orderService.getMyOrderDetail(userId, orderId);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<OrderDetailResponseDTO> getMyOrderDetail(@PathVariable Long orderId) {
+        // Lấy ID người dùng đang đăng nhập từ token
+        Long currentUserId = SecurityUtils.getAuthenticatedUserId();
+
+        // Gọi service đã được cập nhật thêm tham số currentUserId để check bảo mật (403)
+        OrderDetailResponseDTO orderDetail = orderService.getMyOrderDetail(currentUserId, orderId);
+
+        return ResponseEntity.ok(orderDetail);
     }
 
     // HỦY ĐƠN HÀNG
@@ -87,5 +90,13 @@ public class OrderController {
     public ResponseEntity<OrderDashboardSummaryDTO> getDashboardSummary() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(orderService.getDashboardSummary(userId));
+    }
+    @GetMapping("/history")
+    public ResponseEntity<List<OrderSummaryResponseDTO>> getMyOrderHistory() {
+        Long currentUserId = SecurityUtils.getAuthenticatedUserId();
+        List<OrderSummaryResponseDTO> orderHistory = orderService.getCustomerOrderHistory(currentUserId);
+
+        // AC-BE-US28-01: Trả về 200 OK với mảng orders (có thể rỗng)
+        return ResponseEntity.ok(orderHistory);
     }
 }

@@ -1,5 +1,6 @@
 package com.fashion.controller.api;
 
+import com.fashion.dto.request.RemoveWishlistRequestDTO;
 import com.fashion.dto.response.WishlistItemResponseDTO;
 import com.fashion.dto.response.WishlistToggleResponseDTO;
 import com.fashion.service.wishlist.WishlistService;
@@ -18,7 +19,7 @@ public class WishlistController {
     private final WishlistService wishlistService;
 
     // LẤY DANH SÁCH YÊU THÍCH
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<List<WishlistItemResponseDTO>> getWishlist() {
         Long userId = SecurityUtils.getAuthenticatedUserId();
         return ResponseEntity.ok(wishlistService.getWishlist(userId));
@@ -36,12 +37,10 @@ public class WishlistController {
     }
 
     // XÓA KHỎI DANH SÁCH
-    @DeleteMapping("/{itemId}")
-    public ResponseEntity<Void> removeWishlistItem(
-            @PathVariable Long itemId
-    ) {
+    @DeleteMapping("remove")
+    public ResponseEntity<Void> removeListWishlistItem(@RequestBody RemoveWishlistRequestDTO wishlists) {
         Long userId = SecurityUtils.getAuthenticatedUserId();
-        wishlistService.removeWishlistItem(userId, itemId);
+        wishlistService.removeWishlistItems(userId, wishlists.getWishlists());
         return ResponseEntity.noContent().build();
     }
 }

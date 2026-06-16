@@ -63,7 +63,9 @@ axiosInstance.interceptors.response.use(
 
     if (status === 401 && !originalRequest._retry) {
       const refreshToken = localStorage.getItem('fashion_admin_refresh_token')
-                        || localStorage.getItem('fashion_customer_refresh_token');
+                        || sessionStorage.getItem('fashion_admin_refresh_token')
+                        || localStorage.getItem('fashion_customer_refresh_token')
+                        || sessionStorage.getItem('fashion_customer_refresh_token');
 
       // Không có refresh token → clear & về login
       if (!refreshToken) {
@@ -91,15 +93,24 @@ axiosInstance.interceptors.response.use(
           { headers: { 'Content-Type': 'application/json' } },
         );
 
-        const { token: newToken, refreshToken: newRefresh } = res.data;
+        // Lấy token mới từ response (hỗ trợ cả field token và accessToken)
+        const tokenData = res.data;
+        const newToken = tokenData.accessToken || tokenData.token; 
+        const newRefresh = tokenData.refreshToken;
 
-        // Lưu token mới vào đúng key (admin hoặc customer)
-        if (localStorage.getItem(ADMIN_TOKEN_KEY)) {
-          localStorage.setItem(ADMIN_TOKEN_KEY, newToken);
-          if (newRefresh) localStorage.setItem('fashion_admin_refresh_token', newRefresh);
-        } else {
-          localStorage.setItem(CUSTOMER_TOKEN_KEY, newToken);
-          if (newRefresh) localStorage.setItem('fashion_customer_refresh_token', newRefresh);
+        // Cập nhật cho Admin
+        if (localStorage.getItem(ADMIN_TOKEN_KEY) || sessionStorage.getItem(ADMIN_TOKEN_KEY)) {
+           const storage = localStorage.getItem(ADMIN_TOKEN_KEY) ? localStorage : sessionStorage;
+           storage.setItem(ADMIN_TOKEN_KEY, newToken);
+           if (newRefresh) storage.setItem('fashion_admin_refresh_token', newRefresh);
+        } 
+        // Cập nhật cho Customer
+        else if (localStorage.getItem(CUSTOMER_TOKEN_KEY) || sessionStorage.getItem(CUSTOMER_TOKEN_KEY)) {
+           const storage = localStorage.getItem(CUSTOMER_TOKEN_KEY) ? localStorage : sessionStorage;
+           storage.setItem(CUSTOMER_TOKEN_KEY, newToken);
+           // Update localStorage manually for axios compatibility
+           localStorage.setItem(CUSTOMER_TOKEN_KEY, newToken); 
+           if (newRefresh) storage.setItem('fashion_customer_refresh_token', newRefresh);
         }
 
         axiosInstance.defaults.headers.common.Authorization = `Bearer ${newToken}`;
@@ -123,12 +134,12 @@ axiosInstance.interceptors.response.use(
 );
 
 function forceLogout() {
-  localStorage.removeItem(ADMIN_TOKEN_KEY);
-  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  localStorage.removeItem(ADMIN_USER_KEY);
-  localStorage.removeItem(CUSTOMER_USER_KEY);
-  localStorage.removeItem('fashion_admin_refresh_token');
-  localStorage.removeItem('fashion_customer_refresh_token');
+  localStorage.clear();    // Xóa nhanh toàn bộ localStorage
+  sessionStorage.clear();  // Xóa nhanh toàn bộ sessionStorage
+  
+  // Tuỳ chọn: Nếu muốn giữ lại cấu hình UI (như theme), thì bạn dùng remove từng item như cũ,
+  // nhưng nhớ thêm remove các item tương ứng trong sessionStorage.
+  
   window.location.href = '/login';
 }
 

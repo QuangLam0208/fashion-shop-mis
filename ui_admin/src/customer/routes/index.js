@@ -17,20 +17,26 @@ import LandingPage       from '../pages/landing/LandingPage';
 import ProductListPage   from '../pages/shop/ProductListPage';
 import ProductDetailPage from '../pages/shop/ProductDetailPage';
 import CategoryPage      from '../pages/shop/CategoryPage';
+import WishlistPage      from '../pages/shop/WishlistPage';
 
 // ── Checkout
 import CartPage         from '../pages/checkout/CartPage';
 import CheckoutPage     from '../pages/checkout/CheckoutPage';
 import OrderConfirmPage from '../pages/checkout/OrderConfirmPage';
+import MoMoReturnPage   from '../pages/checkout/MoMoReturnPage';
+import MockMoMoPage from '../pages/checkout/MockMoMoPage';
 
 // ── Account (protected)
 import ProfilePage     from '../pages/account/ProfilePage';
-import MyOrdersPage    from '../pages/account/MyOrdersPage';
+import CustomerOrder    from '../pages/account/CustomerOrderListPage';
 import OrderDetailPage from '../pages/account/OrderDetailPage';
-import WishlistPage    from '../pages/account/WishlistPage';
 
 // ── 404
 import NotFoundPage from '../pages/NotFoundPage';
+import CustomerReturnListPage from '../pages/account/CustomerReturnListPage';
+import CustomerReturnDetailPage from '../pages/account/CustomerReturnDetailPage';
+import PromotionsPage from '../pages/shop/PromotionsPage';
+import CustomerWalletPage from '../pages/account/CustomerWalletPage';
 
 const CustomerRoutes = () => (
   <Routes>
@@ -48,16 +54,22 @@ const CustomerRoutes = () => (
       <Route path="shop"        element={<ProductListPage />} />
       <Route path="shop/:id"    element={<ProductDetailPage />} />
       <Route path="category/:id" element={<CategoryPage />} />
+      <Route path="wishlist" element={<WishlistPage />} />
+      <Route path="promotions"  element={<PromotionsPage />} />
 
       {/* Protected */}
       <Route element={<CustomerPrivateRoute />}>
         <Route path="cart"               element={<CartPage />} />
         <Route path="checkout"           element={<CheckoutPage />} />
         <Route path="checkout/confirm"   element={<OrderConfirmPage />} />
+        <Route path="checkout/payment-result" element={<MoMoReturnPage />} /> 
+        <Route path="mock/momo-payment" element={<MockMoMoPage />} />
         <Route path="account/profile"    element={<ProfilePage />} />
-        <Route path="account/orders"     element={<MyOrdersPage />} />
+        <Route path="account/orders"     element={<CustomerOrder />} />
         <Route path="account/orders/:id" element={<OrderDetailPage />} />
-        <Route path="account/wishlist"   element={<WishlistPage />} />
+        <Route path="account/returns"    element={<CustomerReturnListPage />} />
+        <Route path="account/returns/:id" element={<CustomerReturnDetailPage />} />
+        <Route path="account/wallet" element={<CustomerWalletPage />} />
       </Route>
     </Route>
 

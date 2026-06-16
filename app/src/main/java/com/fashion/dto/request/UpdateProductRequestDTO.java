@@ -33,7 +33,6 @@ public class UpdateProductRequestDTO {
     @NotNull(message = "Trạng thái không được để trống")
     private ProductStatus status;
 
-    @NotEmpty(message = "Phải có ít nhất một ảnh sản phẩm")
     private List<String> imageUrls;
 
     @NotEmpty(message = "Phải có ít nhất một biến thể sản phẩm (variant)")

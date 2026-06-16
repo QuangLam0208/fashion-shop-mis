@@ -1,39 +1,23 @@
-import { API_ENDPOINTS } from '../../shared/config/apiConfig';
 import axiosInstance from '../../shared/config/axiosInstance';
 
 export const customerOrderService = {
-  /**
-   * Lấy danh sách đơn hàng của user hiện tại
-   * params: { status, page, limit }
-   */
-  getOrders: async (params = {}) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.CUSTOMER.ORDERS, { params });
-    return res.data;
+  // Lấy danh sách lịch sử đơn hàng (Backend tự lấy userId từ Token - Đảm bảo AC-US28-01)
+  getOrders: async (params) => {
+    // TRUYỀN params vào cấu hình của axios
+    const res = await axiosInstance.get('/api/orders/list', { params });
+    // Dữ liệu trả về sẽ có cấu trúc { content: [...], totalPages: ... }
+    return res.data || res; 
   },
-
-  /** Lấy chi tiết 1 đơn hàng */
-  getById: async (orderId) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.CUSTOMER.ORDER_DETAIL(orderId));
-    return res.data;
+  // Lấy chi tiết đơn hàng
+  getOrderDetail: async (id) => {
+    const res = await axiosInstance.get(`/api/orders/${id}`);
+    return res.data || res;
   },
-
-  /** Huỷ đơn hàng (chỉ khi PENDING_CONFIRMATION) */
-  cancelOrder: async (orderId) => {
-    const res = await axiosInstance.put(
-      `${API_ENDPOINTS.CUSTOMER.ORDERS}/${orderId}/cancel`
-    );
+  
+  // API Hủy đơn hàng (giữ nguyên từ US-27)
+  cancelOrder: async (payload) => {
+    const { orderId, cancellationReason } = payload;
+    const res = await axiosInstance.post(`/api/orders/${orderId}/cancel`, { cancellationReason });
     return res.data;
-  },
-
-  /**
-   * Gửi yêu cầu trả hàng
-   * payload: { order_id, reason, images[] }
-   */
-  requestReturn: async (orderId, payload) => {
-    const res = await axiosInstance.post(
-      `${API_ENDPOINTS.CUSTOMER.ORDERS}/${orderId}/return`,
-      payload
-    );
-    return res.data;
-  },
+  }
 };

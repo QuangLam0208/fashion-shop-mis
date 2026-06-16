@@ -89,6 +89,18 @@ const customerAuthService = {
   },
 
   /**
+   * Gửi lại email xác thực
+   * POST /api/auth/resend-verification
+   * Body: { email }
+   */
+  resendVerification: async (email) => {
+    const res = await axiosInstance.post(API_ENDPOINTS.AUTH.RESEND_VERIFICATION, { 
+      email 
+    });
+    return res.data;
+  },
+
+  /**
    * Quên mật khẩu — gửi email reset
    * POST /api/auth/forgot-password
    * Body: { email }

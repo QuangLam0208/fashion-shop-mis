@@ -24,7 +24,7 @@ const WishlistButton = ({ productId, size = 'middle', showText = false }) => {
   const handleToggle = async (e) => {
     e.stopPropagation();
     if (!isAuthenticated) {
-      message.info('Vui lòng đăng nhập để thêm yêu thích');
+      message.info('Vui lòng đăng nhập để yêu thích');
       navigate('/login');
       return;
     }
@@ -32,9 +32,9 @@ const WishlistButton = ({ productId, size = 'middle', showText = false }) => {
     try {
       const res = await wishlistService.toggle(productId);
       setWishlisted(res.wishlisted);
-      message.success(res.wishlisted ? '❤️ Đã thêm vào yêu thích' : 'Đã xoá khỏi yêu thích');
-    } catch {
-      message.error('Có lỗi xảy ra, vui lòng thử lại');
+      message.success(res.message || (res.wishlisted ? 'Đã thêm sản phẩm vào mục yêu thích.' : 'Đã xóa sản phẩm khỏi mục yêu thích.'));
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại');
     } finally {
       setLoading(false);
     }

@@ -31,14 +31,22 @@ public class ProductController {
     /**
      * GET /api/products?keyword=áo&page=0&size=12
      */
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<ProductSummaryResponseDTO>> getProducts(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "id,asc") String sort
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        return ResponseEntity.ok(productService.getProducts(keyword, pageable));
+        String[] sortParts = sort.split(",");
+        String sortProperty = sortParts[0];
+        Sort.Direction sortDirection = Sort.Direction.ASC;
+        if (sortParts.length > 1 && "desc".equalsIgnoreCase(sortParts[1])) {
+            sortDirection = Sort.Direction.DESC;
+        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortProperty));
+        return ResponseEntity.ok(productService.getProducts(keyword, categoryId, pageable));
     }
 
     /**

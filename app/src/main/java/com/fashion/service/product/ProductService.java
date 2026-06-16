@@ -13,10 +13,10 @@ import java.util.List;
 
 public interface ProductService {
     // Public: danh sách sản phẩm đang bán
-    Page<ProductSummaryResponseDTO> getProducts(String keyword, Pageable pageable);
+    Page<ProductSummaryResponseDTO> getProducts(String keyword, Long categoryId, Pageable pageable);
 
     // Admin: danh sách có thể lọc theo status
-    Page<ProductSummaryResponseDTO> getAdminProducts(String keyword, ProductStatus status, Pageable pageable);
+    Page<ProductSummaryResponseDTO> getAdminProducts(String keyword, Long categoryId, ProductStatus status, Pageable pageable);
 
     // Chi tiết 1 sản phẩm
     ProductDetailResponseDTO getProductDetail(Long productId);

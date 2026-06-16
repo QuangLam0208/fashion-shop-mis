@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -27,45 +28,20 @@ public class DashboardServiceImpl implements DashboardService {
     @Transactional(readOnly = true)
     public DashboardResponseDTO getDashboardData() {
 
-        // Tính khoảng thời gian tháng này và tháng trước
-        Calendar cal = Calendar.getInstance();
+        Instant now = Instant.now();
+        Instant startOfTime = Instant.EPOCH; // Dùng để tính tổng toàn thời gian
 
-        // Đầu tháng này
-        cal.set(Calendar.DAY_OF_MONTH, 1);
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        Date startOfThisMonth = cal.getTime();
+        // KPI: Doanh thu tổng (Khớp totalRevenue)
+        Double totalRevenue = orderRepository.calculateTotalRevenueAll(startOfTime, now);
 
-        // Cuối tháng này (= ngày hiện tại)
-        Date now = new Date();
+        // KPI: Tổng số đơn hàng (Khớp totalOrders)
+        int totalOrders = orderRepository.countOrders(startOfTime, now);
 
-        // Đầu tháng trước
-        cal.add(Calendar.MONTH, -1);
-        Date startOfLastMonth = cal.getTime();
-
-        // Cuối tháng trước (= đầu tháng này - 1ms)
-        Calendar endLastMonthCal = Calendar.getInstance();
-        endLastMonthCal.setTime(startOfThisMonth);
-        endLastMonthCal.add(Calendar.MILLISECOND, -1);
-        Date endOfLastMonth = endLastMonthCal.getTime();
-
-        // KPI: Doanh thu
-        Double revenueThisMonth = orderRepository.calculateTotalRevenueAll(startOfThisMonth, now);
-        Double revenueLastMonth = orderRepository.calculateTotalRevenueAll(startOfLastMonth, endOfLastMonth);
-
-        // KPI: Đơn hàng
-        int ordersThisMonth = orderRepository.countOrders(startOfThisMonth, now);
-        int ordersLastMonth = orderRepository.countOrders(startOfLastMonth, endOfLastMonth);
-
-        // KPI: Khách hàng
+        // KPI: Khách hàng (Khớp totalCustomers)
         long totalCustomers = userRepository.countByRole(Role.CUSTOMER);
 
-        // KPI: Hoàn trả chờ xử lý
+        // Các KPI phụ
         long pendingReturns = returnRequestRepository.countByStatus(ReturnStatus.PENDING);
-
-        // KPI: Tổng sản phẩm
         long totalProducts = productRepository.count();
 
         // Đơn hàng gần đây
@@ -73,8 +49,7 @@ public class DashboardServiceImpl implements DashboardService {
         List<DashboardResponseDTO.RecentOrderDTO> recentOrderDTOs = recentOrders.stream()
                 .map(o -> DashboardResponseDTO.RecentOrderDTO.builder()
                         .orderId(o.getId())
-                        .customerName(o.getUser() != null ? o.getUser().getFullName()
-                                : "Khách vãng lai")
+                        .customerName(o.getUser() != null ? o.getUser().getFullName() : "Khách vãng lai")
                         .totalAmount(o.getTotalAmount())
                         .status(o.getOrderItems() != null && !o.getOrderItems().isEmpty()
                                 ? o.getOrderItems().get(0).getStatus().name()
@@ -84,14 +59,15 @@ public class DashboardServiceImpl implements DashboardService {
                         .build())
                 .collect(Collectors.toList());
 
-        // Sản phẩm bán chạy (Top 5)
+        // Sản phẩm bán chạy (Top 5) -> Khớp topSellingProducts
         List<Object[]> topSellingRaw = orderItemRepository.findTopSellingProducts();
-        List<DashboardResponseDTO.TopProductDTO> topProducts = topSellingRaw.stream()
+        List<DashboardResponseDTO.TopProductDTO> topSellingProducts = topSellingRaw.stream()
                 .limit(5)
                 .map(row -> DashboardResponseDTO.TopProductDTO.builder()
-                        .productName((String) row[0])
-                        .totalSold(((Number) row[1]).longValue())
-                        .revenue(((Number) row[2]).doubleValue())
+                        .productId(row[0] != null ? ((Number) row[0]).longValue() : null) // Đã map ID
+                        .productName((String) row[1])
+                        .totalSold(((Number) row[2]).longValue())
+                        .revenue(((Number) row[3]).doubleValue())
                         .build())
                 .collect(Collectors.toList());
 
@@ -105,15 +81,13 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         return DashboardResponseDTO.builder()
-                .revenueThisMonth(revenueThisMonth != null ? revenueThisMonth : 0.0)
-                .revenueLastMonth(revenueLastMonth != null ? revenueLastMonth : 0.0)
-                .ordersThisMonth(ordersThisMonth)
-                .ordersLastMonth(ordersLastMonth)
+                .totalRevenue(totalRevenue != null ? totalRevenue : 0.0)
+                .totalOrders(totalOrders)
                 .totalCustomers(totalCustomers)
                 .pendingReturns(pendingReturns)
                 .totalProducts(totalProducts)
                 .recentOrders(recentOrderDTOs)
-                .topProducts(topProducts)
+                .topSellingProducts(topSellingProducts)
                 .orderStatusStats(orderStatusStats)
                 .build();
     }

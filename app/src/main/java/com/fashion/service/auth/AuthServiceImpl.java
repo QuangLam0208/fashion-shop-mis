@@ -234,10 +234,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Mật khẩu xác nhận không khớp!");
         }
 
-        if (dto.getNewPassword().length() < 6) {
-            throw new BadRequestException("Mật khẩu mới phải có ít nhất 6 ký tự!");
-        }
-
         User user = resetToken.getUser();
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
         userRepository.save(user);

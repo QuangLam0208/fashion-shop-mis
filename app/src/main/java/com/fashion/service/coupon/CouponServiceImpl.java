@@ -7,6 +7,8 @@ import com.fashion.dto.request.UpdateCouponRequestDTO;
 import com.fashion.dto.response.ApplyCouponResponseDTO;
 import com.fashion.dto.response.CouponResponseDTO;
 import com.fashion.dto.response.MessageResponseDTO;
+import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Coupon;
 import com.fashion.model.User;
 import com.fashion.model.UserCoupon;
@@ -25,7 +27,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class CouponServiceImpl implements CouponService{
+public class CouponServiceImpl implements CouponService {
 
     private final CouponRepository couponRepository;
     private final UserCouponRepository userCouponRepository;
@@ -59,24 +61,28 @@ public class CouponServiceImpl implements CouponService{
     @Transactional
     public MessageResponseDTO collectCoupon(Long userId, CollectCouponRequestDTO dto) {
         Coupon coupon = couponRepository.findById(dto.getCouponId())
-                .orElseThrow(() -> new RuntimeException("Mã giảm giá không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không tồn tại!"));
 
-        // Mã giảm giá không hợp lệ hoặc đã hết hạn
         if (!coupon.isActive()) {
-            throw new RuntimeException("Mã giảm giá không còn hiệu lực!");
+            throw new BadRequestException("Mã giảm giá không còn hiệu lực!");
         }
 
         if (coupon.getExpiryDate().isBefore(Instant.now())) {
-            throw new RuntimeException("Mã giảm giá đã hết hạn!");
+            throw new BadRequestException("Mã giảm giá đã hết hạn!");
         }
 
-        // Mã giảm giá đã được thu thập trước đó
+        // AC-BE-US39-04: Validate exhausted coupon limit
+        if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
+            throw new BadRequestException("Mã giảm giá đã đạt giới hạn thu thập hoặc sử dụng!");
+        }
+
+        // AC-BE-US39-01: Duplicate Record Prevention & Error Message
         if (userCouponRepository.existsByUserIdAndCouponId(userId, coupon.getId())) {
-            throw new RuntimeException("Bạn đã thu thập mã giảm giá này trước đó!");
+            throw new BadRequestException("You have already collected this coupon.");
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại!"));
 
         UserCoupon userCoupon = UserCoupon.builder()
                 .user(user)
@@ -90,28 +96,34 @@ public class CouponServiceImpl implements CouponService{
                 .build();
     }
 
-    // Áp dụng mã giảm giá cho đơn hàng
+    // Áp dụng mã giảm giá cho đơn hàng (Chỉ Validate và Tính toán)
     @Override
     public ApplyCouponResponseDTO applyCoupon(Long userId, ApplyCouponRequestDTO dto, Double currentTotal) {
-        // Mã giảm giá không hợp lệ
+        // 1. Mã giảm giá không hợp lệ hoặc hết hạn
         Coupon coupon = couponRepository.findByCodeAndActiveTrueAndExpiryDateAfter(
-                        dto.getCouponCode(), Instant.now())
-                .orElseThrow(() -> new RuntimeException("Mã giảm giá không hợp lệ hoặc đã hết hạn!"));
+                dto.getCouponCode(), Instant.now())
+                .orElseThrow(() -> new BadRequestException("Mã giảm giá không hợp lệ hoặc đã hết hạn!"));
 
-        // Mã giảm giá không thỏa điều kiện sử dụng
-        if (coupon.getMinOrderAmount() != null && currentTotal < coupon.getMinOrderAmount()) {
-            throw new RuntimeException("Đơn hàng chưa đạt giá trị tối thiểu " + coupon.getMinOrderAmount() + "đ để sử dụng mã này!");
+        // 2. Hết lượt sử dụng toàn hệ thống
+        if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit()) {
+            throw new BadRequestException("Mã giảm giá này đã hết lượt sử dụng!");
         }
 
-        // Mã giảm giá đã được sử dụng hoặc vượt quá số lượt
+        // 3. Không thỏa điều kiện giá trị tối thiểu
+        if (coupon.getMinOrderAmount() != null && currentTotal < coupon.getMinOrderAmount()) {
+            throw new BadRequestException(
+                    "Đơn hàng chưa đạt giá trị tối thiểu " + coupon.getMinOrderAmount() + "đ để sử dụng mã này!");
+        }
+
+        // 4. Kiểm tra user đã thu thập chưa và đã dùng chưa
         UserCoupon userCoupon = userCouponRepository.findByUserIdAndCouponCode(userId, dto.getCouponCode())
-                .orElseThrow(() -> new RuntimeException("Bạn chưa thu thập mã giảm giá này!"));
+                .orElseThrow(() -> new BadRequestException("Bạn chưa thu thập mã giảm giá này!"));
 
         if (userCoupon.isUsed()) {
-            throw new RuntimeException("Mã giảm giá đã được sử dụng!");
+            throw new BadRequestException("Bạn đã sử dụng mã giảm giá này rồi!");
         }
 
-        // Tính toán giảm giá
+        // 5. Tính toán giảm giá
         double discountAmount;
         if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
             discountAmount = currentTotal * (coupon.getDiscountValue() / 100.0);
@@ -131,6 +143,27 @@ public class CouponServiceImpl implements CouponService{
                 .build();
     }
 
+    // THÊM MỚI: Hàm này sẽ được gọi bên trong OrderService khi thực sự Place Order
+    @Transactional
+    public void consumeCoupon(Long userId, String couponCode) {
+        Coupon coupon = couponRepository.findByCodeAndActiveTrue(couponCode)
+                .orElseThrow(() -> new BadRequestException("Mã không hợp lệ!"));
+
+        // Cập nhật Atomic chống Data Race (Bạn nhớ thêm hàm incrementUsedCount vào
+        // CouponRepository)
+        int updatedRows = couponRepository.incrementUsedCount(coupon.getId());
+        if (updatedRows == 0) {
+            throw new BadRequestException("Rất tiếc, mã giảm giá đã hết lượt sử dụng trước khi bạn kịp chốt đơn!");
+        }
+
+        // Đánh dấu user đã sử dụng
+        UserCoupon userCoupon = userCouponRepository.findByUserIdAndCouponId(userId, coupon.getId())
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy mã giảm giá trong ví của bạn!"));
+
+        userCoupon.setUsed(true);
+        userCouponRepository.save(userCoupon);
+    }
+
     // ADMIN API
     @Override
     public Page<CouponResponseDTO> getAllCoupons(String keyword, Pageable pageable) {
@@ -140,7 +173,7 @@ public class CouponServiceImpl implements CouponService{
     @Override
     public CouponResponseDTO getCouponDetail(Long couponId) {
         Coupon coupon = couponRepository.findById(couponId)
-                .orElseThrow(() -> new RuntimeException("Mã giảm giá không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không tồn tại!"));
         return mapToDTO(coupon);
     }
 
@@ -148,7 +181,17 @@ public class CouponServiceImpl implements CouponService{
     @Transactional
     public CouponResponseDTO createCoupon(CreateCouponRequestDTO dto) {
         if (couponRepository.existsByCode(dto.getCode())) {
-            throw new RuntimeException("Mã CODE đã tồn tại!");
+            throw new BadRequestException("This coupon code already exists in the system!");
+        }
+
+        if (dto.getStartDate() != null && dto.getExpiryDate() != null && !dto.getExpiryDate().isAfter(dto.getStartDate())) {
+            throw new BadRequestException("Invalid date range: End date must be later than start date");
+        }
+
+        if (dto.getDiscountType() == DiscountType.PERCENTAGE && dto.getDiscountValue() != null) {
+            if (dto.getDiscountValue() < 1 || dto.getDiscountValue() > 100) {
+                throw new BadRequestException("Discount percentage must be between 1 and 100");
+            }
         }
 
         Coupon coupon = Coupon.builder()
@@ -159,6 +202,7 @@ public class CouponServiceImpl implements CouponService{
                 .expiryDate(dto.getExpiryDate())
                 .minOrderAmount(dto.getMinOrderAmount())
                 .usageLimit(dto.getUsageLimit())
+                .usedCount(0) // Khởi tạo số lượng đã dùng = 0
                 .active(dto.isActive())
                 .build();
 
@@ -169,20 +213,27 @@ public class CouponServiceImpl implements CouponService{
     @Transactional
     public CouponResponseDTO updateCoupon(Long couponId, UpdateCouponRequestDTO dto) {
         Coupon coupon = couponRepository.findById(couponId)
-                .orElseThrow(() -> new RuntimeException("Mã giảm giá không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không tồn tại!"));
 
         if (dto.getCode() != null && !dto.getCode().equals(coupon.getCode())
                 && couponRepository.existsByCode(dto.getCode())) {
-            throw new RuntimeException("Mã CODE cập nhật đã tồn tại!");
+            throw new BadRequestException("Mã CODE cập nhật đã tồn tại!");
         }
 
-        if (dto.getCode() != null) coupon.setCode(dto.getCode());
-        if (dto.getDiscountValue() != null) coupon.setDiscountValue(dto.getDiscountValue());
-        if (dto.getDiscountType() != null) coupon.setDiscountType(dto.getDiscountType());
-        if (dto.getStartDate() != null) coupon.setStartDate(dto.getStartDate());
-        if (dto.getExpiryDate() != null) coupon.setExpiryDate(dto.getExpiryDate());
-        if (dto.getMinOrderAmount() != null) coupon.setMinOrderAmount(dto.getMinOrderAmount());
-        if (dto.getUsageLimit() != null) coupon.setUsageLimit(dto.getUsageLimit());
+        if (dto.getCode() != null)
+            coupon.setCode(dto.getCode());
+        if (dto.getDiscountValue() != null)
+            coupon.setDiscountValue(dto.getDiscountValue());
+        if (dto.getDiscountType() != null)
+            coupon.setDiscountType(dto.getDiscountType());
+        if (dto.getStartDate() != null)
+            coupon.setStartDate(dto.getStartDate());
+        if (dto.getExpiryDate() != null)
+            coupon.setExpiryDate(dto.getExpiryDate());
+        if (dto.getMinOrderAmount() != null)
+            coupon.setMinOrderAmount(dto.getMinOrderAmount());
+        if (dto.getUsageLimit() != null)
+            coupon.setUsageLimit(dto.getUsageLimit());
         coupon.setActive(dto.isActive());
 
         return mapToDTO(couponRepository.save(coupon));
@@ -192,7 +243,7 @@ public class CouponServiceImpl implements CouponService{
     @Transactional
     public MessageResponseDTO toggleCouponStatus(Long couponId) {
         Coupon coupon = couponRepository.findById(couponId)
-                .orElseThrow(() -> new RuntimeException("Mã giảm giá không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không tồn tại!"));
 
         coupon.setActive(!coupon.isActive());
         couponRepository.save(coupon);
@@ -215,5 +266,26 @@ public class CouponServiceImpl implements CouponService{
                 .active(coupon.isActive())
                 .collected(false)
                 .build();
+    }
+    @Override
+    public List<CouponResponseDTO> getMyWallet(Long userId) {
+        List<UserCoupon> userCoupons = userCouponRepository.findByUserIdAndUsedFalse(userId);
+
+        return userCoupons.stream().map(uc -> {
+            Coupon coupon = uc.getCoupon();
+            return CouponResponseDTO.builder()
+                    .couponId(coupon.getId())
+                    .code(coupon.getCode())
+                    .discountValue(coupon.getDiscountValue())
+                    .discountType(coupon.getDiscountType())
+                    .startDate(coupon.getStartDate())
+                    .expiryDate(coupon.getExpiryDate())
+                    .minOrderAmount(coupon.getMinOrderAmount())
+                    .usageLimit(coupon.getUsageLimit())
+                    .active(coupon.isActive())
+                    .used(uc.isUsed())
+                    .collected(true)
+                    .build();
+        }).toList();
     }
 }

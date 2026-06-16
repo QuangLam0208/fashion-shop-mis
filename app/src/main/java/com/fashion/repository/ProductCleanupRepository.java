@@ -21,6 +21,7 @@ public class ProductCleanupRepository {
         
         // 1. Xóa trong các bảng phụ (Ràng buộc lỏng)
         entityManager.createNativeQuery("DELETE FROM wishlist_items WHERE product_id = ?").setParameter(1, productId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM review_images WHERE review_id IN (SELECT review_id FROM reviews WHERE product_id = ?)").setParameter(1, productId).executeUpdate();
         entityManager.createNativeQuery("DELETE FROM reviews WHERE product_id = ?").setParameter(1, productId).executeUpdate();
         entityManager.createNativeQuery("DELETE FROM product_images WHERE product_id = ?").setParameter(1, productId).executeUpdate();
         
