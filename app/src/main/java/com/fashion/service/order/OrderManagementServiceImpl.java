@@ -229,6 +229,7 @@ public class OrderManagementServiceImpl implements OrderManagementService {
                     .returnRequestId(item.getReturnRequest() != null ? item.getReturnRequest().getId() : null)
                     .returnStatus(item.getReturnRequest() != null ? item.getReturnRequest().getStatus().name() : null)
                     .cancellationReason(item.getCancellationReason())
+                    .isReviewed(item.isReviewed())
                     .histories(histories)
                     .build();
         }).collect(Collectors.toList());
