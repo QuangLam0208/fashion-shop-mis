@@ -37,6 +37,7 @@ import CustomerReturnListPage from '../pages/account/CustomerReturnListPage';
 import CustomerReturnDetailPage from '../pages/account/CustomerReturnDetailPage';
 import PromotionsPage from '../pages/shop/PromotionsPage';
 import CustomerWalletPage from '../pages/account/CustomerWalletPage';
+import CustomerMyReviewsPage from '../pages/account/CustomerMyReviewsPage';
 
 const CustomerRoutes = () => (
   <Routes>
@@ -70,6 +71,7 @@ const CustomerRoutes = () => (
         <Route path="account/returns"    element={<CustomerReturnListPage />} />
         <Route path="account/returns/:id" element={<CustomerReturnDetailPage />} />
         <Route path="account/wallet" element={<CustomerWalletPage />} />
+        <Route path="account/my-reviews" element={<CustomerMyReviewsPage />} />
       </Route>
     </Route>
 

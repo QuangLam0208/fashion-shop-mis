@@ -1,7 +1,7 @@
 // src/customer/layouts/Navbar.js
 import React, { useState } from 'react';
 import { Badge, Button, Drawer, Avatar, Dropdown } from 'antd';
-import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, OrderedListOutlined, HeartOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons';
+import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, OrderedListOutlined, HeartOutlined, HistoryOutlined, WalletOutlined, StarOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import useCart           from '../hooks/useCart';
 import useCustomerAuth   from '../hooks/useCustomerAuth';
@@ -42,6 +42,12 @@ const Navbar = () => {
       label: 'Ví Voucher',
       icon: <WalletOutlined />,
       onClick: () => navigate('/account/wallet')
+    },
+    {
+      key: 'my-reviews',
+      label: 'Đánh giá của tôi',
+      icon: <StarOutlined />,
+      onClick: () => navigate('/account/my-reviews')
     },
     {
       key: 'wishlist',

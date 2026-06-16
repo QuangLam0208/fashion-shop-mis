@@ -2,6 +2,7 @@ import {
   DashboardOutlined, ShoppingOutlined, AppstoreOutlined,
   OrderedListOutlined, RollbackOutlined, UserOutlined,
   TagOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 
 export const MENU_ITEMS = [
@@ -12,4 +13,5 @@ export const MENU_ITEMS = [
   { key: '/admin/returns',    icon: <RollbackOutlined />,     label: 'Trả hàng',    path: '/admin/returns'        },
   { key: '/admin/users',      icon: <UserOutlined />,         label: 'Khách hàng',  path: '/admin/users'          },
   { key: '/admin/coupons',    icon: <TagOutlined />,          label: 'Khuyến mãi',  path: '/admin/coupons'        },
+  { key: '/admin/reports',    icon: <LineChartOutlined />,    label: 'Báo cáo doanh thu', path: '/admin/reports'  },
 ];
