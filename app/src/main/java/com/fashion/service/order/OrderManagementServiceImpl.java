@@ -62,14 +62,16 @@ public class OrderManagementServiceImpl implements OrderManagementService {
         updateOverallOrderStatus(item.getOrder());
 
         // Gửi thông báo cho user
-        String content = "Sản phẩm '" + item.getProductName() + "' trong đơn hàng #" + item.getOrder().getId() + " đã chuyển sang trạng thái: " + newStatus;
-        notificationService.createNotification(
-                item.getOrder().getUser(),
-                "Cập nhật trạng thái đơn hàng",
-                content,
-                "INFO",
-                item.getOrder().getId()
-        );
+        if (item.getOrder().getUser() != null) {
+            String content = "Sản phẩm '" + item.getProductName() + "' trong đơn hàng #" + item.getOrder().getId() + " đã chuyển sang trạng thái: " + newStatus;
+            notificationService.createNotification(
+                    item.getOrder().getUser().getId(),
+                    "Cập nhật trạng thái đơn hàng",
+                    content,
+                    "INFO",
+                    item.getOrder().getId()
+            );
+        }
     }
 
     @Override
@@ -357,11 +359,11 @@ public class OrderManagementServiceImpl implements OrderManagementService {
         if (status == RefundStatus.COMPLETED) {
             String message = String.format("Sản phẩm '%s' trong đơn hàng #%d đã được hoàn tiền thành công.",
                     item.getProductName(), orderId);
-            notificationService.createNotification(customer, "Hoàn tiền thành công", message, "SUCCESS", orderId);
+            notificationService.createNotification(customer.getId(), "Hoàn tiền thành công", message, "SUCCESS", orderId);
         } else if (status == RefundStatus.REJECTED) {
             String message = String.format("Yêu cầu hoàn tiền cho sản phẩm '%s' trong đơn hàng #%d đã bị từ chối.",
                     item.getProductName(), orderId);
-            notificationService.createNotification(customer, "Hoàn tiền bị từ chối", message, "WARNING", orderId);
+            notificationService.createNotification(customer.getId(), "Hoàn tiền bị từ chối", message, "WARNING", orderId);
         }
     }
 }

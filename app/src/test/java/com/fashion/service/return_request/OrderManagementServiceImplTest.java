@@ -81,7 +81,7 @@ class OrderManagementServiceImplTest {
         verify(orderItemRepository, times(1)).save(mockItem);
 
         verify(notificationService, times(1)).createNotification(
-                eq(mockUser), eq("Hoàn tiền thành công"), anyString(), eq("SUCCESS"), eq(1L)
+                eq(mockUser.getId()), eq("Hoàn tiền thành công"), anyString(), eq("SUCCESS"), eq(1L)
         );
     }
 

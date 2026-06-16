@@ -1,9 +1,13 @@
 package com.fashion.service.notification;
 
+import com.fashion.exception.ForbiddenException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.Notification;
 import com.fashion.model.User;
 import com.fashion.model.enums.NotificationType;
 import com.fashion.repository.NotificationRepository;
+import com.fashion.repository.UserRepository;
+import com.fashion.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,10 +19,13 @@ import java.util.List;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
-    public void createNotification(User user, String title, String content, String type, Long relatedId) {
+    public void createNotification(Long userId, String title, String content, String type, Long relatedId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng!"));
         Notification notification = Notification.builder()
                 .user(user)
                 .title(title)
@@ -45,7 +52,11 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional
     public void markAsRead(Long notificationId) {
+        Long userId = SecurityUtils.getAuthenticatedUserId();
         notificationRepository.findById(notificationId).ifPresent(n -> {
+            if (!n.getUser().getId().equals(userId)) {
+                throw new ForbiddenException("Bạn không có quyền sửa thông báo này!");
+            }
             n.setRead(true);
             notificationRepository.save(n);
         });

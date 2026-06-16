@@ -1,5 +1,7 @@
 package com.fashion.model;
 import com.fashion.model.enums.NotificationType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -21,6 +23,7 @@ public class Notification {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     @Column(nullable = false)
@@ -34,6 +37,7 @@ public class Notification {
     private NotificationType type;
 
     @Column(nullable = false)
+    @JsonProperty("isRead")
     private boolean isRead = false;
 
     private Long relatedId; // e.g., orderId
