@@ -370,6 +370,7 @@ public class OrderServiceImpl implements OrderService {
                             .status(item.getStatus())
                             .refundStatus(item.getRefundStatus())
                             .cancellationReason(item.getCancellationReason())
+                            .isReviewed(item.isReviewed())
                             .histories(historyDTOs)
                             .build();
                 })
