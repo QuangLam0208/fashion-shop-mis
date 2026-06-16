@@ -36,7 +36,7 @@ public class AdminRevenueController {
     }
 
     // XUẤT FILE BÁO CÁO DOANH THU
-    @GetMapping("/export/reports")
+    @GetMapping("/export")
     public ResponseEntity<byte[]> exportRevenueReport(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate,
