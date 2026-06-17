@@ -27,8 +27,33 @@ const DashboardPage = () => {
   }, []);
 
   // Cấu hình bảng Top sản phẩm theo JSON mới
+  // const productColumns = [
+  //   { title: 'Sản phẩm', dataIndex: 'productName', key: 'productName' },
+  //   { title: 'Số lượng bán', dataIndex: 'totalSold', align: 'center' },
+  //   { title: 'Doanh thu', dataIndex: 'revenue', align: 'right', render: (val) => formatCurrency(val) }
+  // ];
+  // Cấu hình bảng Top sản phẩm theo JSON mới (Có kèm ảnh)
   const productColumns = [
-    { title: 'Sản phẩm', dataIndex: 'productName', key: 'productName' },
+    { 
+      title: 'Sản phẩm', 
+      key: 'productName',
+      render: (_, record) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img 
+            src={record.primaryImageUrl || 'https://placehold.co/40x40?text=No+Img'} 
+            alt={record.productName} 
+            style={{ 
+              width: 40, 
+              height: 40, 
+              objectFit: 'cover', 
+              borderRadius: '4px', 
+              border: '1px solid #f0f0f0' 
+            }} 
+          />
+          <span style={{ fontWeight: 500 }}>{record.productName}</span>
+        </div>
+      )
+    },
     { title: 'Số lượng bán', dataIndex: 'totalSold', align: 'center' },
     { title: 'Doanh thu', dataIndex: 'revenue', align: 'right', render: (val) => formatCurrency(val) }
   ];
