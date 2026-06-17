@@ -48,5 +48,6 @@ public class DashboardResponseDTO {
         private String productName;
         private Long totalSold;
         private Double revenue;
+        private String primaryImageUrl;
     }
 }

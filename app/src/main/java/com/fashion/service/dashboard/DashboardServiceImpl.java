@@ -2,6 +2,7 @@ package com.fashion.service.dashboard;
 
 import com.fashion.dto.response.DashboardResponseDTO;
 import com.fashion.model.Order;
+import com.fashion.model.Product;
 import com.fashion.model.enums.OrderStatus;
 import com.fashion.model.enums.ReturnStatus;
 import com.fashion.model.enums.Role;
@@ -61,14 +62,34 @@ public class DashboardServiceImpl implements DashboardService {
 
         // Sản phẩm bán chạy (Top 5) -> Khớp topSellingProducts
         List<Object[]> topSellingRaw = orderItemRepository.findTopSellingProducts();
+        
+        List<Long> productIds = topSellingRaw.stream()
+                .limit(5)
+                .map(row -> row[0] != null ? ((Number) row[0]).longValue() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        Map<Long, String> productImages = new HashMap<>();
+        if (!productIds.isEmpty()) {
+            List<Product> products = productRepository.findAllById(productIds);
+            for (Product p : products) {
+                String imgUrl = p.getImages().isEmpty() ? "/images/placeholder.png" : p.getImages().get(0).getUrl();
+                productImages.put(p.getId(), formatImageUrl(imgUrl));
+            }
+        }
+
         List<DashboardResponseDTO.TopProductDTO> topSellingProducts = topSellingRaw.stream()
                 .limit(5)
-                .map(row -> DashboardResponseDTO.TopProductDTO.builder()
-                        .productId(row[0] != null ? ((Number) row[0]).longValue() : null) // Đã map ID
-                        .productName((String) row[1])
-                        .totalSold(((Number) row[2]).longValue())
-                        .revenue(((Number) row[3]).doubleValue())
-                        .build())
+                .map(row -> {
+                    Long productId = row[0] != null ? ((Number) row[0]).longValue() : null;
+                    return DashboardResponseDTO.TopProductDTO.builder()
+                            .productId(productId)
+                            .productName((String) row[1])
+                            .totalSold(((Number) row[2]).longValue())
+                            .revenue(((Number) row[3]).doubleValue())
+                            .primaryImageUrl(productId != null ? productImages.getOrDefault(productId, "/images/placeholder.png") : "/images/placeholder.png")
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         // Thống kê đơn theo trạng thái
@@ -90,5 +111,13 @@ public class DashboardServiceImpl implements DashboardService {
                 .topSellingProducts(topSellingProducts)
                 .orderStatusStats(orderStatusStats)
                 .build();
+    }
+
+    private String formatImageUrl(String url) {
+        if (url == null)
+            return "/images/placeholder.png";
+        if (url.startsWith("http") || url.startsWith("/"))
+            return url;
+        return "/" + url;
     }
 }
