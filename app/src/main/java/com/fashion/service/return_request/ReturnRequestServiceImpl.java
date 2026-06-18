@@ -15,6 +15,7 @@ import com.fashion.model.enums.RefundStatus;
 import com.fashion.model.enums.ReturnStatus;
 import com.fashion.repository.OrderRepository;
 import com.fashion.repository.ReturnRequestRepository;
+import com.fashion.service.email_log.EmailService;
 import com.fashion.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
     private final OrderRepository orderRepository;
     private final ReturnRequestRepository returnRepository;
+    private final EmailService emailService;
 
     @Override
     public List<ReturnRequestListItemResponseDTO> getReturnRequestsByCustomer(Long customerId) {
@@ -174,6 +176,16 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         rr.setProcessedAt(new Date());
 
         returnRepository.save(rr);
+
+        String userEmail = rr.getUser().getEmail();
+        String customerName = rr.getUser().getFullName();
+        Long orderId = rr.getOrder().getId();
+
+        if (nextStatus == ReturnStatus.REJECTED) {
+            emailService.sendReturnRejectedEmail(userEmail, customerName, orderId, dto.getRejectionReason());
+        } else {
+            emailService.sendReturnApprovedEmail(userEmail, customerName, orderId);
+        }
 
         return MessageResponseDTO.builder()
                 .message("Xử lý yêu cầu hoàn trả thành công!")

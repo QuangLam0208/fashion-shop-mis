@@ -90,4 +90,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Lấy đơn hàng mới nhất của 1 User
     Optional<Order> findTopByUserIdOrderByOrderDateDesc(Long userId);
+
+    @Query("SELECT o FROM Order o WHERE o.orderDate BETWEEN :startDate AND :endDate")
+    List<Order> findAllOrdersByDateRange(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate);
 }
