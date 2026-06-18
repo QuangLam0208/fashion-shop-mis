@@ -44,6 +44,42 @@ public class EmailServiceImpl implements EmailService {
         return sendEmail(email, subject, content);
     }
 
+    @Override
+    public Boolean sendReturnRejectedEmail(String toEmail, String customerName, Long orderId, String reason) {
+        String subject = "Thông báo từ chối yêu cầu đổi trả - Đơn hàng #" + orderId;
+        String content = "<h3>Chào " + customerName + ",</h3>"
+                + "<p>Rất tiếc, yêu cầu đổi trả cho đơn hàng <b>#" + orderId + "</b> của bạn đã bị từ chối.</p>"
+                + "<p><b>Lý do từ quản trị viên:</b> " + reason + "</p>"
+                + "<p>Vui lòng liên hệ bộ phận CSKH nếu bạn cần thêm thông tin.</p>"
+                + "<p>Trân trọng,<br>Đội ngũ H&Y Fashion.</p>";
+
+        return sendEmail(toEmail, subject, content);
+    }
+
+    @Override
+    public Boolean sendReturnApprovedEmail(String toEmail, String customerName, Long orderId) {
+        String subject = "Yêu cầu đổi trả được chấp nhận - Đơn hàng #" + orderId;
+        String content = "<h3>Chào " + customerName + ",</h3>"
+                + "<p>Yêu cầu đổi trả cho đơn hàng <b>#" + orderId + "</b> của bạn đã được chấp nhận.</p>"
+                + "<p>Hệ thống đang tiến hành kiểm tra và sẽ xử lý hoàn tiền cho bạn trong thời gian sớm nhất.</p>"
+                + "<p>Trân trọng,<br>Đội ngũ H&Y Fashion.</p>";
+
+        return sendEmail(toEmail, subject, content);
+    }
+
+    @Override
+    public Boolean sendRefundCompletedEmail(String toEmail, String customerName, Long orderId, String productName) {
+        String subject = "Xác nhận hoàn tiền thành công - Đơn hàng #" + orderId;
+        String content = "<h3>Chào " + customerName + ",</h3>"
+                + "<p>Chúng tôi xin xác nhận số tiền cho sản phẩm <b>'" + productName + "'</b> thuộc đơn hàng <b>#" + orderId
+                + "</b> đã được hoàn trả thành công về tài khoản thanh toán ban đầu của bạn.</p>"
+                + "<p>Quá trình hoàn tiền đã hoàn tất nhằm minh bạch hóa tài chính.</p>"
+                + "<p>Cảm ơn bạn đã luôn tin tưởng mua sắm tại cửa hàng.</p>"
+                + "<p>Trân trọng,<br>Đội ngũ H&Y Fashion.</p>";
+
+        return sendEmail(toEmail, subject, content);
+    }
+
     // Hàm dùng chung để gửi đi
     private Boolean sendEmail(String toEmail, String subject, String content) {
         try {

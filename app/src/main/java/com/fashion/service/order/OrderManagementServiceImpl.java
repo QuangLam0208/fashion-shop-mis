@@ -14,6 +14,7 @@ import com.fashion.repository.OrderHistoryRepository;
 import com.fashion.repository.OrderItemRepository;
 import com.fashion.repository.OrderRepository;
 import com.fashion.repository.ReturnRequestRepository;
+import com.fashion.service.email_log.EmailService;
 import com.fashion.service.notification.NotificationService;
 import com.fashion.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class OrderManagementServiceImpl implements OrderManagementService {
     private final OrderRepository orderRepository;
     private final ReturnRequestRepository returnRequestRepository;
     private final NotificationService notificationService;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -360,6 +362,12 @@ public class OrderManagementServiceImpl implements OrderManagementService {
             String message = String.format("Sản phẩm '%s' trong đơn hàng #%d đã được hoàn tiền thành công.",
                     item.getProductName(), orderId);
             notificationService.createNotification(customer.getId(), "Hoàn tiền thành công", message, "SUCCESS", orderId);
+            emailService.sendRefundCompletedEmail(
+                    customer.getEmail(),
+                    customer.getFullName(),
+                    orderId,
+                    item.getProductName()
+            );
         } else if (status == RefundStatus.REJECTED) {
             String message = String.format("Yêu cầu hoàn tiền cho sản phẩm '%s' trong đơn hàng #%d đã bị từ chối.",
                     item.getProductName(), orderId);
