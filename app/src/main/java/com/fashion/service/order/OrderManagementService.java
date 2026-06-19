@@ -26,4 +26,6 @@ public interface OrderManagementService {
     void updateRefundStatus(Long orderItemId, RefundStatus status);
 
     void updateOverallOrderStatus(Order order);
+
+    byte[] generatePdfInvoice(Long orderId);
 }
