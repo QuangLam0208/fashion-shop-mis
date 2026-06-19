@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Descriptions, Table, Select, Button, message, Spin, Space, Row, Col, Typography, Timeline, Tag, Divider } from 'antd';
-import { ArrowLeftOutlined, ClockCircleOutlined, CheckCircleOutlined, CarOutlined, InboxOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ClockCircleOutlined, CheckCircleOutlined, CarOutlined, InboxOutlined, PrinterOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { orderService } from '../../services/orderService';
 import { formatCurrency, formatDateTime } from '../../../shared/utils/formatters';
@@ -21,7 +21,6 @@ const ORDER_TRANSITIONS = {
   CONFIRMED: ['PROCESSING'],
   PROCESSING: ['SHIPPING'],
   SHIPPING: ['DELIVERED', 'RETURNED'],
-  // Các trạng thái kết thúc (DELIVERED, CANCELLED, RETURNED, COMPLETED) sẽ không có mảng chuyển tiếp
 };
 
 const OrderDetailPage = () => {
@@ -30,13 +29,14 @@ const OrderDetailPage = () => {
   
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(null); // Track xem nút nào đang loading
+  const [actionLoading, setActionLoading] = useState(null); 
+  const [printing, setPrinting] = useState(false);
 
   const fetchOrderDetail = useCallback(async () => {
     setLoading(true);
     try {
       const res = await orderService.getOrderDetail(id);
-      setOrder(res);
+      setOrder(res?.data || res); // Fix an toàn nếu BE bọc trong data
     } catch (error) {
       message.error(error?.response?.data?.message || 'Không thể tải chi tiết đơn hàng');
       navigate('/admin/orders');
@@ -53,13 +53,12 @@ const OrderDetailPage = () => {
   const handleTransitionStatus = async (targetStatus) => {
     setActionLoading(targetStatus);
     try {
-      // Gửi đúng payload { orderId, status } theo yêu cầu Backend
       await orderService.updateOrderStatus({
         orderId: parseInt(id),
         status: targetStatus
       });
       message.success(`Đã cập nhật trạng thái đơn hàng thành: ${EXTENDED_STATUS_MAP[targetStatus]}`);
-      fetchOrderDetail(); // Refetch để nạp lại Timeline (AC-US32-02 & AC-FE-US32-02)
+      fetchOrderDetail();
     } catch (error) {
       message.error(error?.response?.data?.message || 'Cập nhật trạng thái thất bại');
     } finally {
@@ -67,7 +66,6 @@ const OrderDetailPage = () => {
     }
   };
 
-  // Cập nhật trạng thái từng Item (Phụ trợ)
   const handleUpdateItemStatus = async (itemId, currentStatus, targetStatus) => {
     if (currentStatus === targetStatus) return;
     try {
@@ -79,7 +77,22 @@ const OrderDetailPage = () => {
     }
   };
 
-  // Hàm trích xuất Timeline
+  // AC-FE-US47-02: Hàm xử lý xuất Hóa đơn PDF
+  const handleExportPDF = async () => {
+    setPrinting(true);
+    message.loading({ content: 'Đang khởi tạo hóa đơn PDF...', key: 'pdfExport' });
+    try {
+      const blob = await orderService.exportInvoicePDF(id);
+      const fileURL = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      window.open(fileURL, '_blank');
+      message.success({ content: 'Xuất hóa đơn thành công!', key: 'pdfExport' });
+    } catch (error) {
+      message.error({ content: 'Có lỗi xảy ra khi xuất hóa đơn PDF', key: 'pdfExport' });
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   const getTimelineData = () => {
     if (!order?.items) return [];
     let allHistories = [];
@@ -110,6 +123,8 @@ const OrderDetailPage = () => {
     return <div style={{ textAlign: 'center', padding: '100px' }}><Spin size="large" /></div>;
   }
 
+  // AC-US47-02: Kiểm tra điều kiện hiển thị nút PDF
+  const canExportPDF = order.orderType === 'OFFLINE' || order.status === 'COMPLETED';
   const timelineData = getTimelineData();
   const availableTransitions = ORDER_TRANSITIONS[order.status] || [];
 
@@ -158,15 +173,31 @@ const OrderDetailPage = () => {
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/orders')} />
           <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Chi tiết Đơn hàng #{order.orderId}</h2>
+          
+          {/* NÚT XUẤT HÓA ĐƠN PDF */}
+          {canExportPDF ? (
+            <Button 
+              type="primary" 
+              icon={<PrinterOutlined />} 
+              onClick={handleExportPDF} 
+              loading={printing}
+              style={{ background: '#10b981', borderColor: '#10b981', marginLeft: 16 }} 
+            >
+              Xuất hóa đơn PDF
+            </Button>
+          ) : (
+            <Button disabled icon={<PrinterOutlined />} title="Đơn hàng chưa hoàn thành" style={{ marginLeft: 16 }}>
+              Xuất hóa đơn PDF
+            </Button>
+          )}
         </Space>
         
-        {/* KHU VỰC ĐIỀU KHIỂN TRẠNG THÁI THÔNG MINH (AC-FE-US32-01) */}
+        {/* KHU VỰC ĐIỀU KHIỂN TRẠNG THÁI THÔNG MINH */}
         <Space style={{ background: '#fff', padding: '12px 24px', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
           <span style={{ fontWeight: 500, color: '#64748b', marginRight: 8 }}>Hành động:</span>
           
           {availableTransitions.length > 0 ? (
             availableTransitions.map(nextStatus => {
-              // Thiết lập màu sắc và icon cho từng loại nút
               let btnType = 'primary';
               let btnDanger = false;
               let bgColor = '#1890ff';
@@ -215,6 +246,7 @@ const OrderDetailPage = () => {
               <Descriptions.Item label="Ngày đặt"><Text>{formatDateTime(order.orderDate)}</Text></Descriptions.Item>
               <Descriptions.Item label="Trạng thái hiện tại"><Tag color={STATUS_COLORS[order.status] || 'blue'}>{EXTENDED_STATUS_MAP[order.status] || order.status}</Tag></Descriptions.Item>
               <Descriptions.Item label="Thanh toán"><Tag color="geekblue">{order.paymentMethod || 'COD'}</Tag></Descriptions.Item>
+              <Descriptions.Item label="Kênh bán"><Tag color={order.orderType === 'OFFLINE' ? 'magenta' : 'blue'}>{order.orderType === 'OFFLINE' ? 'Tại quầy (POS)' : 'Trực tuyến'}</Tag></Descriptions.Item>
               <Descriptions.Item label="Địa chỉ" span={2}><Text>{order.shippingAddress || 'N/A'}</Text></Descriptions.Item>
             </Descriptions>
           </Card>
@@ -231,7 +263,7 @@ const OrderDetailPage = () => {
                   <Text>{formatCurrency(order.subtotalAmount || order.totalAmount)}</Text>
                 </div>
                 
-                {/* 2. Tiền giảm (Discount) - Chỉ hiện khi có mã (Đúng chuẩn AC của bạn) */}
+                {/* 2. Tiền giảm (Discount) */}
                 {order.couponCode && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text type="secondary">Mã giảm giá ({order.couponCode}):</Text>
@@ -239,9 +271,13 @@ const OrderDetailPage = () => {
                   </div>
                 )}
 
-                {/* [THIẾU PHÍ SHIP Ở ĐÂY] */}
+                {/* 3. Phí vận chuyển (Shipping) */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text type="secondary">Phí vận chuyển:</Text>
+                  <Text>{formatCurrency(order.shippingFee || 0)}</Text>
+                </div>
 
-                {/* 3. Tổng tiền (Total) */}
+                {/* 4. Tổng tiền (Total) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #eee', paddingTop: 12, marginTop: 4 }}>
                   <Title level={5} style={{ margin: 0 }}>Tổng thanh toán:</Title>
                   <Title level={4} style={{ margin: 0, color: '#e53935' }}>{formatCurrency(order.totalAmount)}</Title>
@@ -273,7 +309,7 @@ const OrderDetailPage = () => {
                         </Tag>
                       </div>
                     </div>
-                  )
+                  ) 
                 };
               })}
             />

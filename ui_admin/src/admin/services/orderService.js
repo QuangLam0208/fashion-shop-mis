@@ -34,5 +34,12 @@ export const orderService = {
   updateOrderItemRefundStatus: async (itemId, status) => {
     const res = await axiosInstance.patch(`/api/admin/orders/items/${itemId}/refund-status?status=${status}`);
     return res.data;
+  },
+
+  exportInvoicePDF: async (orderId) => {
+    const res = await axiosInstance.get(`/api/admin/orders/${orderId}/pdf`, {
+      responseType: 'blob' // AC-US47-01: Rất quan trọng để bắt đúng luồng mảng byte của PDF
+    });
+    return res.data;
   }
 };
