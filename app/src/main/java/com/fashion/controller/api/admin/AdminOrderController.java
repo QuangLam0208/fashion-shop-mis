@@ -13,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+ import org.springframework.http.HttpHeaders;
+ import org.springframework.http.MediaType;
 
 import java.util.Date;
 
@@ -67,5 +69,21 @@ public class AdminOrderController {
     ) {
         orderManagementService.updateRefundStatus(itemId, status);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{orderId}/pdf")
+    public ResponseEntity<byte[]> exportPdfInvoice(@PathVariable Long orderId) {
+        byte[] pdfBytes = orderManagementService.generatePdfInvoice(orderId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("inline", "invoice-ORD-" + orderId + ".pdf");
+
+        // Tránh cache để tải file mới nhất
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }

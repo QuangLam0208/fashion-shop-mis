@@ -6,10 +6,7 @@ import com.fashion.dto.response.OrderSummaryResponseDTO;
 import com.fashion.exception.BadRequestException;
 import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.*;
-import com.fashion.model.enums.DiscountType;
-import com.fashion.model.enums.OrderStatus;
-import com.fashion.model.enums.RefundStatus;
-import com.fashion.model.enums.ReturnStatus;
+import com.fashion.model.enums.*;
 import com.fashion.repository.OrderHistoryRepository;
 import com.fashion.repository.OrderItemRepository;
 import com.fashion.repository.OrderRepository;
@@ -22,6 +19,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+ import com.lowagie.text.*;
+ import com.lowagie.text.pdf.*;
+ import java.io.ByteArrayOutputStream;
+ import java.text.NumberFormat;
+ import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.Locale;
 
 import java.time.Instant;
 import java.util.*;
@@ -114,6 +118,114 @@ public class OrderManagementServiceImpl implements OrderManagementService {
         if (order.getStatus() != dominantStatus) {
             order.setStatus(dominantStatus);
             orderRepository.save(order);
+        }
+    }
+
+    @Override
+    public byte[] generatePdfInvoice(Long orderId) {
+        // 1. Lấy thông tin đơn hàng
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại!"));
+
+        // 2. AC-US47-02: State Transition Guard (Kiểm tra trạng thái)
+        if (order.getType() == OrderType.ONLINE && order.getStatus() != OrderStatus.COMPLETED) {
+            throw new BadRequestException("Đơn hàng trực tuyến chưa hoàn thành, không thể xuất hóa đơn tài chính!");
+        }
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            // 3. Khởi tạo Document (Khổ A4, Margin)
+            Document document = new Document(PageSize.A4, 50, 50, 50, 50);
+            PdfWriter.getInstance(document, out);
+            document.open();
+
+            // Font mặc định (Lưu ý: Để hiển thị tiếng Việt có dấu chuẩn 100%, bạn nên load file .ttf,
+            // ở đây ta dùng font tiêu chuẩn tích hợp sẵn)
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
+            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
+            Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 12);
+
+            // 4. AC-US47-04: Header & Tên cửa hàng
+            Paragraph title = new Paragraph("FASHION SHOP - INVOICE", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            title.setSpacingAfter(20);
+            document.add(title);
+
+            // Thông tin chung của hóa đơn
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+            document.add(new Paragraph("Invoice No: ORD-" + order.getId(), headerFont));
+            document.add(new Paragraph("Date: " + sdf.format(Date.from(order.getOrderDate())), normalFont));
+
+            // 5. AC-US47-03: Dynamic Layout Rendering (Thông tin khách & Kênh bán)
+            document.add(new Paragraph(" ", normalFont)); // Dòng trống
+            if (order.getType() == OrderType.OFFLINE) {
+                document.add(new Paragraph("Sales Channel: POS (Offline)", headerFont));
+                String customerInfo = (order.getUser() != null) ? order.getUser().getPhone() : "Walk-in Customer";
+                document.add(new Paragraph("Customer: " + customerInfo, normalFont));
+            } else {
+                document.add(new Paragraph("Sales Channel: ONLINE", headerFont));
+                document.add(new Paragraph("Customer: " + order.getUser().getFullName(), normalFont));
+                document.add(new Paragraph("Phone: " + order.getUser().getPhone(), normalFont));
+                document.add(new Paragraph("Shipping Address: " + order.getShippingAddress(), normalFont));
+            }
+            document.add(new Paragraph(" ", normalFont));
+
+            // 6. AC-US47-04: Bảng chi tiết mặt hàng (5 cột)
+            PdfPTable table = new PdfPTable(5);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{3f, 2f, 1f, 2f, 2f}); // Tỷ lệ độ rộng cột
+
+            // Header của bảng
+            String[] headers = {"Product", "Variant", "Quantity", "Price", "Subtotal"};
+            for (String h : headers) {
+                PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
+                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                cell.setPadding(5);
+                table.addCell(cell);
+            }
+
+            // Data của bảng
+            NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+            double subTotal = 0;
+
+            for (OrderItem item : order.getOrderItems()) {
+                table.addCell(new Phrase(item.getProductName(), normalFont));
+
+                String variant = (item.getProductVariant() != null) ?
+                        item.getProductVariant().getColor() + " / " + item.getProductVariant().getSize() : "N/A";
+                table.addCell(new Phrase(variant, normalFont));
+
+                PdfPCell qtyCell = new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), normalFont));
+                qtyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                table.addCell(qtyCell);
+
+                table.addCell(new Phrase(currencyFormat.format(item.getPrice()), normalFont));
+
+                double rowTotal = item.getPrice() * item.getQuantity();
+                subTotal += rowTotal;
+                table.addCell(new Phrase(currencyFormat.format(rowTotal), normalFont));
+            }
+            document.add(table);
+
+            // 7. AC-US47-04: Tổng kết tiền (Subtotal, Discount, Total)
+            document.add(new Paragraph(" ", normalFont));
+            document.add(new Paragraph("Subtotal: " + currencyFormat.format(subTotal), normalFont));
+
+            double discount = 0;
+            if (order.getCoupon() != null) {
+                // Tính toán tiền giảm giá dựa vào logic của bạn (tạm tính subTotal - totalAmount)
+                discount = subTotal - order.getTotalAmount();
+                document.add(new Paragraph("Discount applied: -" + currencyFormat.format(discount), normalFont));
+            }
+
+            Paragraph finalTotal = new Paragraph("TOTAL AMOUNT: " + currencyFormat.format(order.getTotalAmount()), headerFont);
+            finalTotal.setAlignment(Element.ALIGN_RIGHT);
+            document.add(finalTotal);
+
+            document.close();
+            return out.toByteArray();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi khởi tạo tài liệu PDF: " + e.getMessage());
         }
     }
 
