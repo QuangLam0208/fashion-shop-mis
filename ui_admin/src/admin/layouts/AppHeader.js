@@ -24,17 +24,6 @@ const AppHeader = () => {
 
   const userMenuItems = [
     {
-      key:     'profile',
-      icon:    <UserOutlined />,
-      label:   'Thông tin cá nhân',
-    },
-    {
-      key:     'settings',
-      icon:    <SettingOutlined />,
-      label:   'Cài đặt',
-    },
-    { type: 'divider' },
-    {
       key:     'logout',
       icon:    <LogoutOutlined />,
       label:   'Đăng xuất',

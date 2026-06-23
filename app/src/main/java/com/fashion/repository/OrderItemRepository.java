@@ -43,5 +43,13 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
             "FROM OrderItem oi WHERE oi.status = com.fashion.model.enums.OrderStatus.DELIVERED " +
             "OR oi.status = com.fashion.model.enums.OrderStatus.COMPLETED " +
             "GROUP BY oi.productName ORDER BY SUM(oi.quantity) DESC")
+    // Kiểm tra xem một biến thể sản phẩm đã từng nằm trong bất kỳ đơn hàng nào chưa
+    boolean existsByProductVariantId(Long variantId);
+    // DASHBOARD - Top 5 sản phẩm bán chạy nhất (Bổ sung thêm Product ID)
+    @Query("SELECT oi.productVariant.product.id, oi.productName, SUM(oi.quantity), SUM(oi.quantity * oi.price) " +
+            "FROM OrderItem oi WHERE oi.status = com.fashion.model.enums.OrderStatus.DELIVERED " +
+            "OR oi.status = com.fashion.model.enums.OrderStatus.COMPLETED " +
+            "GROUP BY oi.productVariant.product.id, oi.productName " +
+            "ORDER BY SUM(oi.quantity) DESC")
     List<Object[]> findTopSellingProducts();
 }

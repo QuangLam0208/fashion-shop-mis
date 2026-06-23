@@ -4,6 +4,7 @@ import com.fashion.model.enums.DiscountType;
 import com.fashion.model.enums.OrderStatus;
 import com.fashion.model.enums.PaymentMethod;
 import com.fashion.model.enums.RefundStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,7 +29,19 @@ public class OrderDetailResponseDTO {
     private Double discountAmount;
     private Double discountValue;
     private DiscountType discountType;
+    private CustomerInfo userInfo;
     private List<OrderItemDTO> items;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class CustomerInfo {
+        private Long userId;
+        private String fullName;
+        private String email;
+        private String phone;
+    }
 
     @Data
     @NoArgsConstructor
@@ -48,6 +61,8 @@ public class OrderDetailResponseDTO {
         private Long returnRequestId;
         private String returnStatus;
         private String cancellationReason;
+        @JsonProperty("isReviewed")
+        private boolean isReviewed;
         private List<OrderHistoryDTO> histories;
     }
 

@@ -1,53 +1,65 @@
-// src/customer/components/QuantityInput.js
 import React from 'react';
-import '../styles/product.css';
+import { Button, InputNumber, Space } from 'antd';
+import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 
-/**
- * QuantityInput — nút − / số lượng / +
- * Props:
- *   value: number
- *   min: number (default 1)
- *   max: number (default 99)
- *   onChange: (newValue) => void
- *   disabled: bool
- */
-const QuantityInput = ({ value = 1, min = 1, max = 99, onChange, disabled = false }) => {
-  const handleDec = () => { if (value > min) onChange(value - 1); };
-  const handleInc = () => { if (value < max) onChange(value + 1); };
-  const handleInput = (e) => {
-    const v = parseInt(e.target.value);
-    if (!isNaN(v) && v >= min && v <= max) onChange(v);
+const QuantityInput = ({ 
+  value = 1, 
+  onChange, 
+  min = 1, 
+  max, // Có thể truyền tồn kho vào đây
+  disabled = false 
+}) => {
+
+  const handleDecrease = () => {
+    if (value > min) {
+      onChange(value - 1);
+    }
+  };
+
+  const handleIncrease = () => {
+    if (max === undefined || value < max) {
+      onChange(value + 1);
+    }
   };
 
   return (
-    <div className="qty-input">
-      <button
-        className="qty-input__btn"
-        onClick={handleDec}
+    <Space.Compact style={{ display: 'inline-flex' }}>
+      <Button 
+        icon={<MinusOutlined />} 
+        onClick={handleDecrease} 
         disabled={disabled || value <= min}
-        aria-label="Giảm số lượng"
-      >
-        −
-      </button>
-      <input
-        className="qty-input__value"
-        type="number"
-        value={value}
+        style={{ width: 36, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      />
+      <InputNumber
         min={min}
         max={max}
-        onChange={handleInput}
+        value={value}
+        onChange={(val) => {
+          // Xử lý khi người dùng xóa trắng ô input, tự động set về min
+          if (val === null || val === '') {
+            onChange(min);
+          } else {
+            onChange(val);
+          }
+        }}
+        controls={false} // Quan trọng: Ẩn 2 mũi tên mặc định của InputNumber
         disabled={disabled}
-        aria-label="Số lượng"
+        style={{ 
+          width: 50, 
+          textAlign: 'center', // Căn giữa số lượng
+          display: 'flex', 
+          justifyContent: 'center' 
+        }}
+        // Dùng CSS nội bộ để ép text ra giữa (nếu InputNumber của antd bị lệch)
+        className="custom-quantity-input"
       />
-      <button
-        className="qty-input__btn"
-        onClick={handleInc}
-        disabled={disabled || value >= max}
-        aria-label="Tăng số lượng"
-      >
-        +
-      </button>
-    </div>
+      <Button 
+        icon={<PlusOutlined />} 
+        onClick={handleIncrease} 
+        disabled={disabled || (max !== undefined && value >= max)}
+        style={{ width: 36, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      />
+    </Space.Compact>
   );
 };
 

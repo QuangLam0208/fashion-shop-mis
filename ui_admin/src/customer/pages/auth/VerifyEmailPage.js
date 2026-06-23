@@ -1,6 +1,7 @@
 // src/customer/pages/auth/VerifyEmailPage.js
 import React, { useEffect, useState, useRef } from 'react';
-import { Spin, Result, Button } from 'antd';
+import { Spin, Result, Button, Form, Input, message } from 'antd';
+import { MailOutlined } from '@ant-design/icons';
 import { Link, useSearchParams } from 'react-router-dom';
 import customerAuthService from '../../services/customerAuthService';
 
@@ -16,6 +17,10 @@ const VerifyEmailPage = () => {
   const token                   = searchParams.get('token');
   const [status, setStatus]     = useState('loading'); // 'loading' | 'success' | 'error'
   const [errorMsg, setErrorMsg] = useState('');
+
+  // State cho việc gửi lại email
+  const [showResendForm, setShowResendForm] = useState(false);
+  const [resendLoading, setResendLoading]   = useState(false);
 
   // Guard chặn StrictMode gọi 2 lần
   const calledRef = useRef(false);
@@ -42,6 +47,20 @@ const VerifyEmailPage = () => {
         );
       });
   }, [token]);
+
+  // Xử lý submit form gửi lại email xác thực
+  const handleResend = async (values) => {
+    setResendLoading(true);
+    try {
+      const res = await customerAuthService.resendVerification(values.email);
+      message.success(res.message || 'Liên kết xác thực mới đã được gửi vào email của bạn!');
+      setShowResendForm(false);
+    } catch (err) {
+      message.error(err?.response?.data?.message || err.message || 'Không thể gửi lại email xác thực. Vui lòng kiểm tra lại.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   // ── Loading
   if (status === 'loading') {
@@ -82,26 +101,69 @@ const VerifyEmailPage = () => {
     );
   }
 
-  // ── Lỗi
+  // ── Lỗi (Thêm tính năng gửi lại Email)
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#faf8f5' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: '48px 40px', width: 480, boxShadow: '0 8px 40px rgba(0,0,0,0.08)', textAlign: 'center' }}>
         <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 20, fontWeight: 700, letterSpacing: 3, color: '#1a1a1a', marginBottom: 32 }}>
           ✦ FASHION
         </div>
+        
         <Result
           status="error"
           title="Xác thực thất bại"
           subTitle={errorMsg}
           extra={[
+            <Button 
+              key="resend" 
+              onClick={() => setShowResendForm(!showResendForm)}
+            >
+              {showResendForm ? 'Hủy thao tác' : 'Gửi lại link xác thực'}
+            </Button>,
             <Link key="login" to="/login">
-              <Button type="primary" style={{ background: '#1a1a1a', border: 'none' }}>Về đăng nhập</Button>
-            </Link>,
-            <Link key="register" to="/register">
-              <Button>Đăng ký lại</Button>
+              <Button type="primary" style={{ background: '#1a1a1a', border: 'none' }}>
+                Về đăng nhập
+              </Button>
             </Link>,
           ]}
         />
+
+        {/* Form nhập email gửi lại mã kích hoạt */}
+        {showResendForm && (
+          <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid #f0f0f0', textAlign: 'left' }}>
+            <p style={{ color: '#666', marginBottom: 16 }}>
+              Nhập email bạn đã đăng ký để nhận lại liên kết kích hoạt mới:
+            </p>
+            <Form layout="vertical" onFinish={handleResend}>
+              <Form.Item
+                name="email"
+                rules={[
+                  { required: true, message: 'Vui lòng nhập địa chỉ Email!' },
+                  { type: 'email', message: 'Email không đúng định dạng!' }
+                ]}
+              >
+                <Input 
+                  prefix={<MailOutlined style={{ color: '#bfbfbf' }} />} 
+                  placeholder="Nhập email của bạn" 
+                  size="large" 
+                />
+              </Form.Item>
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  loading={resendLoading} 
+                  block 
+                  size="large"
+                  style={{ background: '#1a1a1a', border: 'none' }}
+                >
+                  Xác nhận gửi
+                </Button>
+              </Form.Item>
+            </Form>
+          </div>
+        )}
+
       </div>
     </div>
   );

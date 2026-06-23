@@ -1,41 +1,27 @@
-import { API_ENDPOINTS } from '../../shared/config/apiConfig';
 import axiosInstance from '../../shared/config/axiosInstance';
 
-export const adminUserService = {
-  /**
-   * Lấy danh sách khách hàng
-   * GET /api/admin/users
-   * params: { keyword, status, page, limit }
-   */
-  getAll: async (params = {}) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.ADMIN_USERS.GET_ALL, { params });
+export const userService = {
+  // Lấy danh sách khách hàng (có tìm kiếm và phân trang)
+  getCustomers: async (params = {}) => {
+    const res = await axiosInstance.get('/api/admin/customers', { params });
     return res.data;
   },
 
-  /**
-   * Chi tiết khách hàng
-   * GET /api/admin/users/:id
-   */
-  getById: async (id) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.ADMIN_USERS.GET_BY_ID(id));
+  // Lấy chi tiết hồ sơ khách hàng & lịch sử đơn hàng tóm tắt
+  getCustomerDetail: async (customerId) => {
+    const res = await axiosInstance.get(`/api/admin/customers/${customerId}`);
     return res.data;
   },
 
-  /**
-   * Khoá / Mở khoá tài khoản
-   * PUT /api/admin/users/:id/toggle-status
-   */
-  toggleStatus: async (id) => {
-    const res = await axiosInstance.put(API_ENDPOINTS.ADMIN_USERS.TOGGLE_STATUS(id));
+  // Lấy chi tiết sâu 1 đơn hàng của khách
+  getCustomerOrderDeep: async (customerId, orderId) => {
+    const res = await axiosInstance.get(`/api/admin/customers/${customerId}/orders/${orderId}`);
     return res.data;
   },
 
-  /**
-   * Lịch sử đơn hàng của 1 khách
-   * GET /api/admin/users/:id/orders
-   */
-  getOrders: async (id) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.ADMIN_USERS.GET_ORDERS(id));
+  // Khóa / Mở khóa tài khoản
+  toggleCustomerStatus: async (customerId, payload) => {
+    const res = await axiosInstance.patch(`/api/admin/customers/${customerId}/status`, payload);
     return res.data;
-  },
+  }
 };

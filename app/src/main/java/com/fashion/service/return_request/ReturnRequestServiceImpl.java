@@ -4,22 +4,26 @@ import com.fashion.dto.request.ProcessReturnRequestDTO;
 import com.fashion.dto.request.SubmitReturnRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.ReturnItemDTO;
-import com.fashion.dto.response.ReturnRequestResponseDTO;
+import com.fashion.dto.response.ReturnRequestDetailResponseDTO;
+import com.fashion.dto.response.ReturnRequestListItemResponseDTO;
+import com.fashion.exception.BadRequestException;
+import com.fashion.exception.ForbiddenException;
+import com.fashion.exception.ResourceNotFoundException;
 import com.fashion.model.*;
 import com.fashion.model.enums.OrderStatus;
 import com.fashion.model.enums.RefundStatus;
 import com.fashion.model.enums.ReturnStatus;
 import com.fashion.repository.OrderRepository;
 import com.fashion.repository.ReturnRequestRepository;
+import com.fashion.service.email_log.EmailService;
+import com.fashion.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -27,36 +31,68 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
     private final OrderRepository orderRepository;
     private final ReturnRequestRepository returnRepository;
+    private final EmailService emailService;
 
     @Override
-    public List<ReturnRequestResponseDTO> getReturnRequestsByCustomer(Long customerId) {
+    public List<ReturnRequestListItemResponseDTO> getReturnRequestsByCustomer(Long customerId) {
         return returnRepository.findByUserIdOrderByRequestDateDesc(customerId)
-                .stream().map(this::mapToDTO).toList();
+                .stream().map(this::mapToListItemDTO).toList();
+    }
+
+    @Override
+    public ReturnRequestDetailResponseDTO getCustomerReturnRequestDetail(Long requestId) {
+        ReturnRequest rr = returnRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Yêu cầu hoàn trả không tồn tại!"));
+
+        Long currentUserId = SecurityUtils.getAuthenticatedUserId();
+        if (!rr.getUser().getId().equals(currentUserId)) {
+            throw new ForbiddenException("Bạn không có quyền truy cập yêu cầu hoàn trả này!");
+        }
+
+        return mapToDTO(rr);
     }
 
     @Override
     public Order getOrderForReturn(Long orderId) {
         return orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại!"));
+                .orElseThrow(() -> new BadRequestException("Đơn hàng không tồn tại!"));
     }
 
     @Override
     public List<OrderItem> validateReturnEligibility(Long orderId, List<Long> itemIds) {
         Order order = getOrderForReturn(orderId);
 
+        Long authenticatedUserId = SecurityUtils.getAuthenticatedUserId();
+        if (!order.getUser().getId().equals(authenticatedUserId)) {
+            throw new BadRequestException("Bạn không có quyền yêu cầu hoàn trả cho đơn hàng này!");
+        }
+
         List<OrderItem> selectedItems = order.getOrderItems().stream()
                 .filter(item -> itemIds.contains(item.getId()))
                 .toList();
 
+        if (selectedItems.isEmpty()) {
+            throw new BadRequestException("Không tìm thấy sản phẩm hợp lệ để hoàn trả!");
+        }
+
+        Set<Long> uniqueItemIds = new HashSet<>(itemIds);
+        if (selectedItems.size() != uniqueItemIds.size()) {
+            throw new BadRequestException(
+                    "Một hoặc nhiều sản phẩm không thuộc đơn hàng này!");
+        }
+
         for (OrderItem item : selectedItems) {
             if (item.getStatus() != OrderStatus.DELIVERED && item.getStatus() != OrderStatus.COMPLETED) {
-                throw new RuntimeException("Sản phẩm '" + item.getProductName()
+                throw new BadRequestException("Sản phẩm '" + item.getProductName()
                         + "' chưa được giao thành công, không thể hoàn trả!");
             }
         }
 
-        if (returnRepository.existsByOrderItemIdIn(itemIds)) {
-            throw new RuntimeException("Một hoặc nhiều sản phẩm đã được yêu cầu hoàn trả trước đó!");
+        List<ReturnStatus> activeStatuses = List.of(ReturnStatus.PENDING, ReturnStatus.APPROVED);
+        boolean hasActiveReturn = returnRepository.existsByItemIdsAndStatuses(itemIds, activeStatuses);
+
+        if (hasActiveReturn) {
+            throw new BadRequestException("Một hoặc nhiều sản phẩm đã có yêu cầu hoàn trả đang được xử lý!");
         }
 
         return selectedItems;
@@ -66,7 +102,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Transactional
     public ReturnRequest submitReturnRequest(SubmitReturnRequestDTO dto) {
         List<OrderItem> returnItems = validateReturnEligibility(dto.getOrderId(), dto.getItemIds());
-        Order order = returnItems.getFirst().getOrder();
+        Order order = returnItems.get(0).getOrder();
 
         ReturnRequest returnRequest = new ReturnRequest();
         returnRequest.setOrder(order);
@@ -88,17 +124,17 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     }
 
     @Override
-    public Page<ReturnRequestResponseDTO> getAllReturnRequests(ReturnStatus status, Pageable pageable) {
+    public Page<ReturnRequestListItemResponseDTO> getAllReturnRequests(ReturnStatus status, Pageable pageable) {
         if (status != null) {
-            return returnRepository.findByStatusOrderByRequestDateAsc(status, pageable).map(this::mapToDTO);
+            return returnRepository.findByStatusOrderByRequestDateAsc(status, pageable).map(this::mapToListItemDTO);
         }
-        return returnRepository.findAll(pageable).map(this::mapToDTO);
+        return returnRepository.findAll(pageable).map(this::mapToListItemDTO);
     }
 
     @Override
-    public ReturnRequestResponseDTO getReturnRequestDetail(Long requestId) {
+    public ReturnRequestDetailResponseDTO getReturnRequestDetail(Long requestId) {
         ReturnRequest rr = returnRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Yêu cầu hoàn trả không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Yêu cầu hoàn trả không tồn tại!"));
         return mapToDTO(rr);
     }
 
@@ -106,72 +142,97 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     @Transactional
     public MessageResponseDTO processReturnRequest(Long requestId, ProcessReturnRequestDTO dto) {
         ReturnRequest rr = returnRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Yêu cầu hoàn trả không tồn tại!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Yêu cầu hoàn trả không tồn tại!"));
 
         ReturnStatus currentStatus = rr.getStatus();
         ReturnStatus nextStatus = dto.getNewStatus();
 
-        // Validation for workflow transitions
-        if (currentStatus == ReturnStatus.PENDING) {
-            if (nextStatus != ReturnStatus.APPROVED && nextStatus != ReturnStatus.REJECTED) {
-                throw new RuntimeException("Chỉ có thể Duyệt hoặc Từ chối yêu cầu đang chờ!");
-            }
-        } else if (currentStatus == ReturnStatus.APPROVED) {
-            if (nextStatus != ReturnStatus.COMPLETED) {
-                throw new RuntimeException("Chủ có thể Hoàn tất yêu cầu đã được duyệt!");
-            }
-        } else {
-            throw new RuntimeException("Yêu cầu đã kết thúc, không thể xử lý thêm!");
+        // 1. Validation for workflow transitions
+        if (currentStatus != ReturnStatus.PENDING) {
+            throw new BadRequestException("Yêu cầu đã được xử lý, không thể thao tác thêm!");
         }
 
-        rr.setStatus(nextStatus);
-        rr.setProcessedAt(new Date());
+        if (nextStatus != ReturnStatus.APPROVED && nextStatus != ReturnStatus.REJECTED) {
+            throw new BadRequestException("Chỉ có thể duyệt hoặc từ chối yêu cầu đang chờ!");
+        }
 
+        // 2. Logic on Rejection- Bắt buộc nhập lý do
         if (nextStatus == ReturnStatus.REJECTED) {
+            if (dto.getRejectionReason() == null || dto.getRejectionReason().trim().isEmpty()) {
+                throw new BadRequestException("A rejection reason is required when rejecting a return request.");
+            }
             rr.setRejectionReason(dto.getRejectionReason());
-            // Reset items status back to NONE if rejected
             for (OrderItem item : rr.getReturnItems()) {
                 item.setRefundStatus(RefundStatus.NONE);
             }
-        } else if (nextStatus == ReturnStatus.APPROVED) {
+        }
+        // 3. Approval
+        else {
             for (OrderItem item : rr.getReturnItems()) {
                 item.setRefundStatus(RefundStatus.PENDING);
             }
-        } else if (nextStatus == ReturnStatus.COMPLETED) {
-            for (OrderItem item : rr.getReturnItems()) {
-                item.setRefundStatus(RefundStatus.COMPLETED);
-                item.setStatus(OrderStatus.CANCELLED);
-            }
         }
+        rr.setStatus(nextStatus);
+        rr.setProcessedAt(new Date());
 
         returnRepository.save(rr);
+
+        String userEmail = rr.getUser().getEmail();
+        String customerName = rr.getUser().getFullName();
+        Long orderId = rr.getOrder().getId();
+
+        if (nextStatus == ReturnStatus.REJECTED) {
+            emailService.sendReturnRejectedEmail(userEmail, customerName, orderId, dto.getRejectionReason());
+        } else {
+            emailService.sendReturnApprovedEmail(userEmail, customerName, orderId);
+        }
 
         return MessageResponseDTO.builder()
                 .message("Xử lý yêu cầu hoàn trả thành công!")
                 .build();
     }
 
-    private ReturnRequestResponseDTO mapToDTO(ReturnRequest rr) {
-        return ReturnRequestResponseDTO.builder()
+    // Mapper riêng cho Danh Sách
+    private ReturnRequestListItemResponseDTO mapToListItemDTO(ReturnRequest rr) {
+        return ReturnRequestListItemResponseDTO.builder()
                 .requestId(rr.getId())
-                .orderId(rr.getOrder().getId())
-                .customerName(rr.getUser().getFullName())
-                .customerEmail(rr.getUser().getEmail())
+                .orderId(rr.getOrder() != null ? rr.getOrder().getId() : null)
+                .customerName(rr.getUser() != null ? rr.getUser().getFullName() : null)
+                .customerPhone(rr.getUser() != null ? rr.getUser().getPhone() : null)
+                .reason(rr.getReason())
+                .requestDate(rr.getRequestDate() != null ? rr.getRequestDate().toInstant() : null)
+                .status(rr.getStatus())
+                .totalItems(rr.getReturnItems() != null ? rr.getReturnItems().size() : 0)
+                .build();
+    }
+
+    // Mapper cho Chi Tiết
+    private ReturnRequestDetailResponseDTO mapToDTO(ReturnRequest rr) {
+        return ReturnRequestDetailResponseDTO.builder()
+                .requestId(rr.getId())
                 .status(rr.getStatus())
                 .reason(rr.getReason())
                 .description(rr.getDescription())
                 .imageUrls(rr.getImageUrls())
-                .requestDate(rr.getRequestDate())
+                .requestDate(rr.getRequestDate() != null ? rr.getRequestDate().toInstant() : null)
+                .processedAt(rr.getProcessedAt() != null ? rr.getProcessedAt().toInstant() : null)
                 .rejectionReason(rr.getRejectionReason())
-                .paymentMethod(rr.getOrder().getPaymentMethod().name())
+                .customerId(rr.getUser() != null ? rr.getUser().getId() : null)
+                .customerName(rr.getUser() != null ? rr.getUser().getFullName() : null)
+                .customerEmail(rr.getUser() != null ? rr.getUser().getEmail() : null)
+                .customerPhone(rr.getUser() != null ? rr.getUser().getPhone() : null)
+                .orderId(rr.getOrder() != null ? rr.getOrder().getId() : null)
+                .paymentMethod(rr.getOrder() != null ? rr.getOrder().getPaymentMethod() : null)
                 .items(rr.getReturnItems().stream()
                         .map(item -> ReturnItemDTO.builder()
+                                .orderItemId(item.getId())
                                 .productName(item.getProductName())
                                 .productImage(getProductImageUrl(item.getProductVariant()))
                                 .size(item.getProductVariant() != null ? item.getProductVariant().getSize() : null)
                                 .color(item.getProductVariant() != null ? item.getProductVariant().getColor() : null)
                                 .quantity(item.getQuantity())
                                 .price(item.getPrice())
+                                .refundStatus(item.getRefundStatus())
                                 .build())
                         .toList())
                 .build();
@@ -186,7 +247,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 .filter(img -> img.getColor() != null && img.getColor().equalsIgnoreCase(variant.getColor()))
                 .map(ProductImage::getUrl)
                 .findFirst()
-                .orElse(variant.getProduct().getImages().getFirst().getUrl());
+                .orElse(variant.getProduct().getImages().get(0).getUrl());
 
         if (targetUrl == null) return null;
 

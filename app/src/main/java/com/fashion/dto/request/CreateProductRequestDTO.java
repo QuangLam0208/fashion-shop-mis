@@ -29,7 +29,6 @@ public class CreateProductRequestDTO {
     @Min(value = 0, message = "Giá không được âm")
     private Double price;
 
-    @NotEmpty(message = "Phải có ít nhất một ảnh sản phẩm")
     private List<String> imageUrls;
 
     @NotEmpty(message = "Phải có ít nhất một biến thể sản phẩm (variant)")

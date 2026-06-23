@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -27,31 +28,31 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Lấy tất cả đơn hàng trong khoảng thời gian
     List<Order> findByOrderDateBetween(Date startDate, Date endDate);
- 
+
     @Query("SELECT o FROM Order o WHERE o.orderDate BETWEEN :startDate AND :endDate " +
-           "AND (" +
-           "(o.paymentMethod = 'COD' AND o.status IN ('DELIVERED', 'COMPLETED')) OR " +
-           "(o.paymentMethod != 'COD' AND o.status IN ('PAID', 'PROCESSING', 'SHIPPING', 'DELIVERED', 'COMPLETED'))" +
-           ")")
-    List<Order> findActiveOrdersInPeriod(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+            "AND (" +
+            "(o.paymentMethod = 'COD' AND o.status IN ('DELIVERED', 'COMPLETED')) OR " +
+            "(o.paymentMethod != 'COD' AND o.status IN ('PAID', 'PROCESSING', 'SHIPPING', 'DELIVERED', 'COMPLETED'))" +
+            ")")
+    List<Order> findActiveOrdersInPeriod(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate);
 
     // Tính tổng doanh thu theo loại đơn (ONLINE/OFFLINE) trong khoảng thời gian, loại bỏ các đơn chưa thanh toán hoặc đã hủy
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.orderDate BETWEEN :startDate AND :endDate AND o.type = :type " +
-           "AND (" +
-           "(o.paymentMethod = 'COD' AND o.status IN ('DELIVERED', 'COMPLETED')) OR " +
-           "(o.paymentMethod != 'COD' AND o.status IN ('PAID', 'PROCESSING', 'SHIPPING', 'DELIVERED', 'COMPLETED'))" +
-           ")")
-    Double calculateTotalRevenue(@Param("startDate") Date startDate, @Param("endDate") Date endDate,
-            @Param("type") OrderType type);
+            "AND (" +
+            "(o.paymentMethod = 'COD' AND o.status IN ('DELIVERED', 'COMPLETED')) OR " +
+            "(o.paymentMethod != 'COD' AND o.status IN ('PAID', 'PROCESSING', 'SHIPPING', 'DELIVERED', 'COMPLETED'))" +
+            ")")
+    Double calculateTotalRevenue(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate,
+                                 @Param("type") OrderType type);
 
     // Đếm số lượng đơn hàng trong khoảng thời gian, loại bỏ đơn đã hủy
     // Chỉ đếm các đơn được coi là "hợp lệ" (đã thanh toán hoặc đang giao)
     @Query("SELECT COUNT(o) FROM Order o WHERE o.orderDate BETWEEN :startDate AND :endDate " +
-           "AND o.status NOT IN ('CANCELLED', 'PAYMENT_FAILED', 'PAYMENT_EXPIRED', 'PENDING_PAYMENT')")
-    int countOrders(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+            "AND o.status NOT IN ('CANCELLED', 'PAYMENT_FAILED', 'PAYMENT_EXPIRED', 'PENDING_PAYMENT')")
+    int countOrders(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate);
 
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN o.orderItems oi WHERE (?1 IS NULL OR oi.status = ?1) AND (CAST(?2 AS date) IS NULL OR o.orderDate >= ?2) AND (CAST(?3 AS date) IS NULL OR o.orderDate <= ?3)")
-    Page<Order> searchOrders(OrderStatus status, Date startDate, Date endDate, Pageable pageable);
+    Page<Order> searchOrders(OrderStatus status, Instant startDate, Instant endDate, Pageable pageable);
 
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN o.orderItems oi WHERE o.user.id = :userId AND oi.status IN :statuses ORDER BY o.orderDate DESC")
     Page<Order> searchMyOrdersByStatuses(@Param("userId") Long userId, @Param("statuses") List<OrderStatus> statuses,
@@ -69,11 +70,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Tổng doanh thu trong khoảng thời gian (tất cả loại), loại bỏ các đơn chưa thanh toán hoặc đã hủy
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.orderDate BETWEEN :startDate AND :endDate " +
-           "AND (" +
-           "(o.paymentMethod = 'COD' AND o.status IN ('DELIVERED', 'COMPLETED')) OR " +
-           "(o.paymentMethod != 'COD' AND o.status IN ('PAID', 'PROCESSING', 'SHIPPING', 'DELIVERED', 'COMPLETED'))" +
-           ")")
-    Double calculateTotalRevenueAll(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+            "AND (" +
+            "(o.paymentMethod = 'COD' AND o.status IN ('DELIVERED', 'COMPLETED')) OR " +
+            "(o.paymentMethod != 'COD' AND o.status IN ('PAID', 'PROCESSING', 'SHIPPING', 'DELIVERED', 'COMPLETED'))" +
+            ")")
+    Double calculateTotalRevenueAll(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate);
 
     // Đếm đơn theo từng trạng thái
     @Query("SELECT oi.status, COUNT(DISTINCT oi.order.id) FROM OrderItem oi GROUP BY oi.status")
@@ -89,4 +90,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Lấy đơn hàng mới nhất của 1 User
     Optional<Order> findTopByUserIdOrderByOrderDateDesc(Long userId);
+
+    @Query("SELECT o FROM Order o WHERE o.orderDate BETWEEN :startDate AND :endDate")
+    List<Order> findAllOrdersByDateRange(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate);
 }

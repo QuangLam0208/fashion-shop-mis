@@ -5,8 +5,7 @@ import CouponFormPage from '../pages/coupons/CouponFormPage';
 const couponRoutes = (
   <>
     <Route path="coupons" element={<CouponListPage />} />
-    <Route path="coupons/new" element={<CouponFormPage />} />
-    <Route path="coupons/:id/edit" element={<CouponFormPage />} />
+    <Route path="coupons/create" element={<CouponFormPage />} />
   </>
 );
 export default couponRoutes;

@@ -14,6 +14,8 @@ import orderRoutes     from './orderRoutes';
 import returnRoutes    from './returnRoutes';
 import userRoutes      from './userRoutes';
 import couponRoutes    from './couponRoutes';
+import RevenueReportPage from '../pages/reports/RevenueReportPage';
+import POSPage from '../pages/pos/POSPage';
 
 /**
  * AdminRoutes — nhận /*  từ App.js (path="/admin/*")
@@ -38,6 +40,8 @@ const AdminRoutes = () => (
         {returnRoutes}
         {userRoutes}
         {couponRoutes}
+        <Route path="reports" element={<RevenueReportPage />} />
+        <Route path="pos" element={<POSPage />} />
       </Route>
     </Route>
 

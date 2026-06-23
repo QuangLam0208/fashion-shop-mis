@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -15,11 +14,8 @@ import java.util.Map;
 @AllArgsConstructor
 @Builder
 public class DashboardResponseDTO {
-    // KPI Cards
-    private Double revenueThisMonth;
-    private Double revenueLastMonth;
-    private int ordersThisMonth;
-    private int ordersLastMonth;
+    private Double totalRevenue;
+    private int totalOrders;
     private long totalCustomers;
     private long pendingReturns;
     private long totalProducts;
@@ -27,10 +23,7 @@ public class DashboardResponseDTO {
     // Đơn hàng gần đây
     private List<RecentOrderDTO> recentOrders;
 
-    // Sản phẩm bán chạy
-    private List<TopProductDTO> topProducts;
-
-    // Thống kê đơn theo trạng thái
+    private List<TopProductDTO> topSellingProducts;
     private Map<String, Long> orderStatusStats;
 
     @Data
@@ -55,5 +48,6 @@ public class DashboardResponseDTO {
         private String productName;
         private Long totalSold;
         private Double revenue;
+        private String primaryImageUrl;
     }
 }

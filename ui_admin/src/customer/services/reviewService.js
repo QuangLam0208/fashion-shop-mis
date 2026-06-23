@@ -1,26 +1,22 @@
-import { API_ENDPOINTS } from '../../shared/config/apiConfig';
 import axiosInstance from '../../shared/config/axiosInstance';
 
 export const reviewService = {
-  /** Lấy tất cả đánh giá của 1 sản phẩm */
-  getByProduct: async (productId) => {
-    const res = await axiosInstance.get(API_ENDPOINTS.SHOP.REVIEWS(productId));
+  getByProduct: async (productId, params = {}) => {
+    const res = await axiosInstance.get(`/api/reviews/products/${productId}`, { params });
     return res.data;
   },
 
-  /**
-   * Gửi đánh giá
-   * payload: { product_id, order_item_id, rating, comment, images[] }
-   */
   submit: async (payload) => {
-    const res = await axiosInstance.post(
-      API_ENDPOINTS.SHOP.REVIEWS(payload.product_id),
-      payload
-    );
+    const res = await axiosInstance.post('/api/reviews', payload);
     return res.data;
   },
 
-  /** Tính điểm trung bình */
+  // THÊM MỚI: Gọi API lấy lịch sử đánh giá cá nhân
+  getMyReviews: async (params = {}) => {
+    const res = await axiosInstance.get('/api/reviews/my', { params });
+    return res.data;
+  },
+
   getAvgRating: (reviews = []) => {
     if (!reviews.length) return 0;
     const sum = reviews.reduce((s, r) => s + r.rating, 0);

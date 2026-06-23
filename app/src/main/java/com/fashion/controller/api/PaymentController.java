@@ -40,16 +40,15 @@ public class PaymentController {
      * MoMo sẽ gọi vào endpoint này để cập nhật trạng thái giao dịch (thành công/thất bại) ngầm
      */
     @PostMapping("/momo/ipn")
-    public ResponseEntity<Void> processMomoIPN(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<String> processMomoIPN(@RequestBody Map<String, Object> payload) {
         try {
             log.info("Nhận được IPN từ MoMo: {}", payload);
             paymentService.processMomoIPN(payload);
-
+            return ResponseEntity.ok("success");
         } catch (Exception e) {
             log.error("Lỗi khi xử lý IPN MoMo: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
         }
-        // Với Webhook/IPN, phía MoMo chỉ cần nhận lại HTTP Status 200 hoặc 204 báo hiệu server đã ghi nhận
-        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -64,5 +63,14 @@ public class PaymentController {
 
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(redirectUrl)).build();
+    }
+
+    /**
+     * API tạo lại liên kết thanh toán MoMo cho đơn hàng (nếu đơn hàng chưa thanh toán và chọn MoMo)
+     */
+    @PostMapping("/momo/recreate/{orderId}")
+    public ResponseEntity<PaymentResponseDTO> recreateMomoPayment(@PathVariable Long orderId) {
+        PaymentResponseDTO response = paymentService.recreateMomoPayment(orderId);
+        return ResponseEntity.ok(response);
     }
 }

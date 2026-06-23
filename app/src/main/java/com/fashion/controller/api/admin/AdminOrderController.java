@@ -1,5 +1,6 @@
 package com.fashion.controller.api.admin;
 
+import com.fashion.dto.request.UpdateOrderStatusRequestDTO;
 import com.fashion.dto.response.MessageResponseDTO;
 import com.fashion.dto.response.OrderDetailResponseDTO;
 import com.fashion.dto.response.OrderSummaryResponseDTO;
@@ -12,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+ import org.springframework.http.HttpHeaders;
+ import org.springframework.http.MediaType;
 
 import java.util.Date;
 
@@ -23,7 +26,7 @@ public class AdminOrderController {
     private final OrderManagementService orderManagementService;
 
     // DANH SÁCH TẤT CẢ ĐƠN HÀNG
-    @GetMapping
+    @GetMapping("/list")
     public ResponseEntity<Page<OrderSummaryResponseDTO>> getAllOrders(
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
@@ -42,12 +45,11 @@ public class AdminOrderController {
     }
 
     // CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
-    @PatchMapping("/{orderId}/status")
+    @PutMapping("/status")
     public ResponseEntity<MessageResponseDTO> updateOrderStatus(
-            @PathVariable Long orderId,
-            @RequestParam OrderStatus status
+            @RequestBody UpdateOrderStatusRequestDTO request
     ) {
-        return ResponseEntity.ok(orderManagementService.updateOrderStatus(orderId, status));
+        return ResponseEntity.ok(orderManagementService.updateOrderStatus(request.getOrderId(), request.getStatus()));
     }
 
     // CẬP NHẬT TRẠNG THÁI TỪNG SẢN PHẨM TRONG ĐƠN
@@ -67,5 +69,21 @@ public class AdminOrderController {
     ) {
         orderManagementService.updateRefundStatus(itemId, status);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{orderId}/pdf")
+    public ResponseEntity<byte[]> exportPdfInvoice(@PathVariable Long orderId) {
+        byte[] pdfBytes = orderManagementService.generatePdfInvoice(orderId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("inline", "invoice-ORD-" + orderId + ".pdf");
+
+        // Tránh cache để tải file mới nhất
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }
